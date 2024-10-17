@@ -145,7 +145,18 @@ void optimized_q2(float alpha, float beta) {
 			A[i][j] += temp_u1 * v1[j] + temp_u2 * v2[j];
 		}
 	}
+	
+	for (i = 0; i < N; i++) {
+		x[i] = x[i] + z[i];
+		float temp_beta_y = beta * y[i];
 
+		for (j = 0; j < N; j++) {
+			x[j] = x[j] + A[i][j] * temp_beta_y;
+		}
+	}
+	
+	/*
+	* old column wise A
 	for (i = 0; i < N; i++) {
 		float temp_x = z[i];
 		for (j = 0; j < N; j++) {
@@ -153,6 +164,7 @@ void optimized_q2(float alpha, float beta) {
 		}
 		x[i] = temp_x;
 	}
+	*/
 
 	for (i = 0; i < N; i++) {
 		float temp_w = 0.0f;
