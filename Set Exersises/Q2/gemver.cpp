@@ -26,7 +26,7 @@ unsigned short int equal(float const a, float const b) ;
 #define N 8192 //input size
 __declspec(align(64)) float A[N][N], u1[N], u2[N], v1[N], v2[N], x[N], y[N], w[N], z[N], test[N];
 
-#define TIMES_TO_RUN 1 //how many times the function will run
+#define TIMES_TO_RUN 200 //how many times the function will run
 #define EPSILON 0.0001
 
 int main() {
@@ -139,32 +139,20 @@ void optimized_q2(float alpha, float beta) {
 	unsigned int i, j;
 
 	for (i = 0; i < N; i++) {
+		x[i] += z[i];
+
 		float temp_u1 = u1[i];
 		float temp_u2 = u2[i];
-		for (j = 0; j < N; j++) {
-			A[i][j] += temp_u1 * v1[j] + temp_u2 * v2[j];
-		}
-	}
-	
-	for (i = 0; i < N; i++) {
-		x[i] = x[i] + z[i];
+
 		float temp_beta_y = beta * y[i];
 
 		for (j = 0; j < N; j++) {
-			x[j] = x[j] + A[i][j] * temp_beta_y;
+			
+			A[i][j] += temp_u1 * v1[j] + temp_u2 * v2[j];
+
+			x[j] += A[i][j] * temp_beta_y;
 		}
 	}
-	
-	/*
-	* old column wise A
-	for (i = 0; i < N; i++) {
-		float temp_x = z[i];
-		for (j = 0; j < N; j++) {
-			temp_x += beta * A[j][i] * y[j];
-		}
-		x[i] = temp_x;
-	}
-	*/
 
 	for (i = 0; i < N; i++) {
 		float temp_w = 0.0f;
