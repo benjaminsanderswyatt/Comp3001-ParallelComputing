@@ -1,0 +1,25 @@
+	unsigned int i, j;
+
+	for (i = 0; i < N; i++) {
+		x[i] += z[i];
+
+		float temp_u1 = u1[i];
+		float temp_u2 = u2[i];
+
+		float temp_beta_y = beta * y[i];
+
+		for (j = 0; j < N; j++) {
+			
+			A[i][j] += temp_u1 * v1[j] + temp_u2 * v2[j];
+
+			x[j] += A[i][j] * temp_beta_y;
+		}
+	}
+
+	for (i = 0; i < N; i++) {
+		float temp_w = 0.0f;
+		for (j = 0; j < N; j++) {
+			temp_w += alpha * A[i][j] * x[j];
+		}
+		w[i] = temp_w;
+	}
