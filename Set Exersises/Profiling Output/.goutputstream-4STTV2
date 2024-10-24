@@ -5,7 +5,7 @@
 ------------------UNIVERSITY OF PLYMOUTH, SCHOOL OF ENGINEERING, COMPUTING AND MATHEMATICS---
 */
 
-//compile with gcc Question1_alternative_file_SSE_time.c -o time -pg -O3 -D_GNU_SOURCE  -march=native -msse -lm -D_GNU_SOURCE -Wall -fopenmp
+//compile with gcc Question1_alternative_file_SSE.c -o file -pg -O3 -D_GNU_SOURCE  -march=native -msse -lm -D_GNU_SOURCE -Wall -fopenmp
 
 #include <math.h>
 #include <stdio.h>
@@ -25,7 +25,6 @@
 
 #define N 16384 //arrays input size
 #define TIMES 1 //times to run
-#define TRILLION 1000000000
 
 
 //In C, all the routines must be declared
@@ -52,54 +51,24 @@ if(sched_setaffinity(0,sizeof(mask),&mask) == -1)
    printf("WARNING: Could not set CPU Affinity, continuing...\n");
 
 
-double flop, flops, timeper;
+
 
 start=omp_get_wtime();
- for (i=0;i<1;i++){
-  initialize();
- }
-end=omp_get_wtime();
-printf("\n Init - time elapsed is %f secs while time per run is %f secs\n",end-start, (end-start)/1);
-flop = N + 2 * N * N;
-timeper = (end-start)/1;
-flops = flop/timeper;
-printf("Init - %f FLOPs -> %f GFLOPs\n",flops, flops/TRILLION);
- 
-start=omp_get_wtime();
- for (i=0;i<262144;i++){
-  step1();
- }
-end=omp_get_wtime();
-printf("\n Step1 - time elapsed is %f secs while time per run is %f secs\n",end-start, (end-start)/262144);
-flop = (8+8) * N / 4;
-timeper = (end-start)/262144;
-flops = flop/timeper;
-printf("Step1 - %f FLOPs -> %f GFLOPs\n",flops, flops/TRILLION);
- 
-start=omp_get_wtime();
- for (i=0;i<32;i++){
-  step2();
- }
-end=omp_get_wtime();
-printf("\n Step2 - time elapsed is %f secs while time per run is %f secs\n",end-start, (end-start)/32);
-flop = ((8+8) * N / 4) * N;
-timeper = (end-start)/32;
-flops = flop/timeper;
-printf("Step2 - %f FLOPs -> %f GFLOPs\n",flops, flops/TRILLION);
- 
-start=omp_get_wtime();
- for (i=0;i<8;i++){
-  reduction=step3();
- }
-end=omp_get_wtime();
-printf("\n Spep3 - time elapsed is %f secs while time per run is %f secs\n",end-start, (end-start)/8);
-flop = 2 * N * N + 1 * N / 8;
-timeper = (end-start)/8;
-flops = flop/timeper;
-printf("Step3 - %f FLOPs -> %f GFLOPs\n",flops, flops/TRILLION);
 
+for (i=0;i<TIMES;i++){
+
+ initialize();
+ step1();
+ step2();
+ reduction=step3();
+ 
+}
+
+end=omp_get_wtime();
 
 printf("\n output is %e \n",reduction);
+printf("\ntime elapsed is %f secs while time per run is %f secs\n",end-start, (end-start)/TIMES);
+
 
 return 0; //normally, by returning zero, we mean that the program ended successfully. 
 }
