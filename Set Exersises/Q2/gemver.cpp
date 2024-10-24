@@ -21,13 +21,14 @@ void initialize_again();
 void slow_routine(float alpha, float beta);//you will optimize this routine
 void optimized_q2(float alpha, float beta);//you will optimize this routine
 void vector_optimized_q2(float alpha, float beta);//you will optimize this routine
+void reworked_q2(float alpha, float beta);//you will optimize this routine
 unsigned short int Compare(float alpha, float beta);
 unsigned short int equal(float const a, float const b) ;
 
 #define N 8192 //input size
 __declspec(align(64)) float A[N][N], u1[N], u2[N], v1[N], v2[N], x[N], y[N], w[N], z[N], test[N];
 
-#define TIMES_TO_RUN 300 //how many times the function will run
+#define TIMES_TO_RUN 1 //how many times the function will run
 #define EPSILON 0.0001
 
 int main() {
@@ -41,100 +42,170 @@ float alpha=0.23f, beta=0.45f;
 
 	start_1 = clock(); //start the timer 
 
-	for (int i = 0; i < TIMES_TO_RUN; i++)//this loop is needed to get an accurate ex.time value
- 		// slow_routine(alpha,beta);
- 		//optimized_q2(alpha,beta);
-		vector_optimized_q2(alpha, beta);
-		
+for (int i = 0; i < TIMES_TO_RUN; i++)//this loop is needed to get an accurate ex.time value
+	slow_routine(alpha,beta);
+	// optimized_q2(alpha,beta);
+	// vector_optimized_q2(alpha, beta);
+	// reworked_q2(alpha, beta);
 
-	end_1 = clock(); //end the timer 
 
-	printf(" clock() method: %ldms\n", (end_1 - start_1) / (CLOCKS_PER_SEC / 1000));//print the ex.time
+end_1 = clock(); //end the timer 
 
-	if (Compare(alpha,beta) == 0)
-		printf("\nCorrect Result\n");
-	else 
-		printf("\nINcorrect Result\n");
+printf(" clock() method: %ldms\n", (end_1 - start_1) / (CLOCKS_PER_SEC / 1000));//print the ex.time
 
-	system("pause"); //this command does not let the output window to close
+if (Compare(alpha, beta) == 0)
+printf("\nCorrect Result\n");
+else
+printf("\nINcorrect Result\n");
 
-	return 0; //normally, by returning zero, we mean that the program ended successfully. 
+system("pause"); //this command does not let the output window to close
+
+return 0; //normally, by returning zero, we mean that the program ended successfully. 
 }
 
 
-void initialize(){
+void initialize() {
 
-unsigned int    i,j;
+	unsigned int    i, j;
 
-//initialization
-for (i=0;i<N;i++)
-for (j=0;j<N;j++){
-A[i][j]= 1.1f;
+	//initialization
+	for (i = 0; i < N; i++)
+		for (j = 0; j < N; j++) {
+			A[i][j] = 1.1f;
 
-}
+		}
 
-for (i=0;i<N;i++){
-z[i]=(i%9)*0.8f;
-x[i]=0.1f;
-u1[i]=(i%9)*0.2f;
-u2[i]=(i%9)*0.3f;
-v1[i]=(i%9)*0.4f;
-v2[i]=(i%9)*0.5f;
-w[i]=0.0f;
-y[i]=(i%9)*0.7f;
-}
-
-}
-
-void initialize_again(){
-
-unsigned int    i,j;
-
-//initialization
-for (i=0;i<N;i++)
-for (j=0;j<N;j++){
-A[i][j]= 1.1f;
+	for (i = 0; i < N; i++) {
+		z[i] = (i % 9) * 0.8f;
+		x[i] = 0.1f;
+		u1[i] = (i % 9) * 0.2f;
+		u2[i] = (i % 9) * 0.3f;
+		v1[i] = (i % 9) * 0.4f;
+		v2[i] = (i % 9) * 0.5f;
+		w[i] = 0.0f;
+		y[i] = (i % 9) * 0.7f;
+	}
 
 }
 
-for (i=0;i<N;i++){
-z[i]=(i%9)*0.8f;
-x[i]=0.1f;
-test[i]=0.0f;
-u1[i]=(i%9)*0.2f;
-u2[i]=(i%9)*0.3f;
-v1[i]=(i%9)*0.4f;
-v2[i]=(i%9)*0.5f;
-y[i]=(i%9)*0.7f;
-}
+void initialize_again() {
+
+	unsigned int    i, j;
+
+	//initialization
+	for (i = 0; i < N; i++)
+		for (j = 0; j < N; j++) {
+			A[i][j] = 1.1f;
+
+		}
+
+	for (i = 0; i < N; i++) {
+		z[i] = (i % 9) * 0.8f;
+		x[i] = 0.1f;
+		test[i] = 0.0f;
+		u1[i] = (i % 9) * 0.2f;
+		u2[i] = (i % 9) * 0.3f;
+		v1[i] = (i % 9) * 0.4f;
+		v2[i] = (i % 9) * 0.5f;
+		y[i] = (i % 9) * 0.7f;
+	}
 
 }
 
 //you will optimize this routine
-void slow_routine(float alpha, float beta){
+void slow_routine(float alpha, float beta) {
 
-unsigned int i,j;
+	unsigned int i, j;
 
-  for (i = 0; i < N; i++)
-    for (j = 0; j < N; j++)
-      A[i][j] = A[i][j] + u1[i] * v1[j] + u2[i] * v2[j];
+	/*
+	for (i = 0; i < N; i++) {
 
+		float temp_u1 = u1[i];
+		float temp_u2 = u2[i];
 
-  for (i = 0; i < N; i++)
-    for (j = 0; j < N; j++)
-      x[i] = x[i] + beta * A[j][i] * y[j];
+		float temp_y = y[i] * beta;
 
-  for (i = 0; i < N; i++)
-    x[i] = x[i] + z[i];
+		for (j = 0; j < N; j++) {
 
+			A[i][j] = A[i][j] + temp_u1 * v1[j] + temp_u2 * v2[j];
 
-  for (i = 0; i < N; i++)
-    for (j = 0; j < N; j++)
-      w[i] = w[i] +  alpha * A[i][j] * x[j];
+			x[j] = x[j] + A[i][j] * temp_y; // fmadd
+
+		}
+	}
+	*/
+	
+	for (i = 0; i < N; i++) {
+
+		float temp_u1 = u1[i];
+		float temp_u2 = u2[i];
+
+		for (j = 0; j < N; j++) {
+			A[i][j] = A[i][j] + temp_u1 * v1[j] + temp_u2 * v2[j];
+		}
+	}
+		
+	for (i = 0; i < N; i++) {
+
+		float temp_y = y[i] * beta;
+
+		for (j = 0; j < N; j++) {
+			x[j] = x[j] + A[i][j] * temp_y; // fmadd
+		}
+	}
+	
+
+	for (i = 0; i < N; i++) {
+		x[i] = x[i] + z[i];
+	}
+	
+	/*
+	for (i = 0; i < N; i++)
+		for (j = 0; j < N; j++)
+			w[i] = w[i] + alpha * A[i][j] * x[j];
+	*/
+	for (i = 0; i < N; i++) {
+		float temp_w = 0.0f;
+		for (j = 0; j < N; j++) {
+			temp_w += alpha * A[i][j] * x[j];
+		}
+		w[i] = temp_w;
+	}
 
 
 }
 
+void reworked_q2(float alpha, float beta) {
+
+	unsigned int i, j;
+
+
+	for (i = 0; i < N; i++) {
+		x[i] += z[i];
+
+		float temp_u1 = u1[i];
+		float temp_u2 = u2[i];
+
+		float temp_beta_y = beta * y[i];
+
+		for (j = 0; j < N; j++) {
+
+			A[i][j] += temp_u1 * v1[j] + temp_u2 * v2[j];
+
+			x[j] += A[i][j] * temp_beta_y;
+		}
+	}
+
+	for (i = 0; i < N; i++) {
+		float temp_w = 0.0f;
+		for (j = 0; j < N; j++) {
+			temp_w += alpha * A[i][j] * x[j];
+		}
+		w[i] = temp_w;
+	}
+
+
+}
 
 void optimized_q2(float alpha, float beta) {
 

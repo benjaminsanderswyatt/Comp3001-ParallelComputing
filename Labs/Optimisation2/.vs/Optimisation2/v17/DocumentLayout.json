@@ -1,0 +1,37 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\bensw\\Work Docs\\Comp3001\\Comp3001-ParallelComputing\\Labs\\Optimisation2\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{05645727-0C6D-4E79-9FE0-579BE016BA6C}|Optimisation2.vcxproj|C:\\Users\\bensw\\Work Docs\\Comp3001\\Comp3001-ParallelComputing\\Labs\\Optimisation2\\mmm.c||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{05645727-0C6D-4E79-9FE0-579BE016BA6C}|Optimisation2.vcxproj|solutionrelative:mmm.c||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "mmm.c",
+              "DocumentMoniker": "C:\\Users\\bensw\\Work Docs\\Comp3001\\Comp3001-ParallelComputing\\Labs\\Optimisation2\\mmm.c",
+              "RelativeDocumentMoniker": "mmm.c",
+              "ToolTip": "C:\\Users\\bensw\\Work Docs\\Comp3001\\Comp3001-ParallelComputing\\Labs\\Optimisation2\\mmm.c",
+              "RelativeToolTip": "mmm.c",
+              "ViewState": "AgIAABIAAAAAAAAAAAAAAAwAAAAOAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000423|",
+              "WhenOpened": "2024-10-24T08:29:19.134Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
