@@ -21,6 +21,7 @@ void initialize_again();
 void slow_routine(float alpha, float beta);//you will optimize this routine
 void optimized_q2(float alpha, float beta);//--------------------------------------------------------------------
 void reworked_q2(float alpha, float beta);//--------------------------------------------------------------------
+void test_loop_tiling(float alpha, float beta);//--------------------------------------------------------------------
 unsigned short int Compare(float alpha, float beta);
 unsigned short int equal(float const a, float const b) ;
 
@@ -29,7 +30,6 @@ __declspec(align(64)) float A[N][N], u1[N], u2[N], v1[N], v2[N], x[N], y[N], w[N
 
 #define TIMES_TO_RUN 100 //how many times the function will run
 #define EPSILON 0.0001
-#define TILE 8
 
 int main() {
 
@@ -46,6 +46,7 @@ for (int i = 0; i < TIMES_TO_RUN; i++)//this loop is needed to get an accurate e
 	// slow_routine(alpha,beta);
 	//reworked_q2(alpha, beta);
 	optimized_q2(alpha,beta);
+	//test_loop_tiling(alpha,beta);
 
 
 end_1 = clock(); //end the timer 
@@ -329,6 +330,41 @@ void optimized_q2(float alpha, float beta) {
 
 
 }
+#define GRID_WIDTH 10
+#define GRID_HEIGHT 5
+#define TILE_WIDTH 3
+#define TILE_HEIGHT 2
+
+#define TILE_SIZE_I 8
+#define TILE_SIZE_J 8
+#define n 8
+// Testing Loop Tiling Routine
+void test_loop_tiling(float alpha, float beta) {
+
+	unsigned int i, j, ii, jj;
+	__declspec(align(64)) float c[N][N], a[N], b[N];
+
+	for (ii = 0; ii < n; ii += TILE_SIZE_I) {
+		for (jj = 0; jj < n; jj += TILE_SIZE_J) {
+			for (i = ii; i < min(n, ii + TILE_SIZE_I); i++) {
+				for (j = jj; j < min(n, jj + TILE_SIZE_J); j++) {
+					c[i][j] = a[i] * b[j];
+					printf("\n (%d i,%d j)", i, j);
+				}
+			}
+		}
+	}
+}
+
+
+
+
+
+
+
+
+
+
 
 
 unsigned short int Compare(float alpha, float beta) {
