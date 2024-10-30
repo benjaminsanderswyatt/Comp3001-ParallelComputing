@@ -28,7 +28,7 @@ unsigned short int equal(float const a, float const b) ;
 #define N 8192 //input size
 __declspec(align(64)) float A[N][N], u1[N], u2[N], v1[N], v2[N], x[N], y[N], w[N], z[N], test[N];
 
-#define TIMES_TO_RUN 100 //how many times the function will run
+#define TIMES_TO_RUN 1 //how many times the function will run
 #define EPSILON 0.0001
 
 int main() {
@@ -192,7 +192,7 @@ void optimized_q2(float alpha, float beta) {
 		}
 	}
 	*/
-	// 1st Loop Block
+	// 1st Loop Block   -   loop tiling,
 	for (i = 0; i < N; i++) {
 		
 		__m256 temp_u1 = _mm256_set1_ps(u1[i]); // u1
@@ -298,7 +298,7 @@ void optimized_q2(float alpha, float beta) {
 	}
 	*/
 	
-	// 4th Loop Block
+	// 4th Loop Block   -   loop tiling, Reduction
 	for (i = 0; i < N; i++) {
 
 		__m256 temp_w = _mm256_setzero_ps();
@@ -324,6 +324,11 @@ void optimized_q2(float alpha, float beta) {
 		sum_lh = _mm_hadd_ps(sum_lh, sum_lh); // (a0 + a1 + a2 + a3 , ...)
 
 		w[i] = _mm_cvtss_f32(sum_lh);
+
+		// Leftovers
+		for (; j < N; j++) {
+			w[i] += alpha * A[i][j] * x[j];
+		}
 	}
 	
 
