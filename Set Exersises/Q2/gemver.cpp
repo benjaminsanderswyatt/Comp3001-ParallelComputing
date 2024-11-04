@@ -251,10 +251,10 @@ void fast_routine(float alpha, float beta) {
 			__m256 temp_A_1 = _mm256_load_ps(&A[i + 1][j]); // A  (1)
 			temp_x = _mm256_fmadd_ps(temp_A_1, temp_y_1, temp_x); // x = A * y + x  (1)
 
-			__m256 temp_A_2 = _mm256_load_ps(&A[i + 2][j]); // A  (1)
+			__m256 temp_A_2 = _mm256_load_ps(&A[i + 2][j]); // A  (2)
 			temp_x = _mm256_fmadd_ps(temp_A_2, temp_y_2, temp_x); // x = A * y + x  (2)
 
-			__m256 temp_A_3 = _mm256_load_ps(&A[i + 3][j]); // A  (1)
+			__m256 temp_A_3 = _mm256_load_ps(&A[i + 3][j]); // A  (3)
 			temp_x = _mm256_fmadd_ps(temp_A_3, temp_y_3, temp_x); // x = A * y + x  (3)
 
 			_mm256_store_ps(&x[j], temp_x);
