@@ -25,7 +25,7 @@
 
 #define N 16384 //arrays input size
 #define TIMES 1 //times to run
-#define TRILLION 1000000000
+#define BILLION 1000000000
 
 
 //In C, all the routines must be declared
@@ -63,7 +63,7 @@ printf("\n Init - time elapsed is %f secs while time per run is %f secs\n",end-s
 flop = N + 2 * N * N;
 timeper = (end-start)/1;
 flops = flop/timeper;
-printf("Init - %f FLOPs -> %f GFLOPs\n",flops, flops/TRILLION);
+printf("Init - %f FLOPs -> %f GFLOPs\n",flops, flops/BILLION);
  
 start=omp_get_wtime();
  for (i=0;i<262144;i++){
@@ -74,7 +74,7 @@ printf("\n Step1 - time elapsed is %f secs while time per run is %f secs\n",end-
 flop = (8+8) * N / 4;
 timeper = (end-start)/262144;
 flops = flop/timeper;
-printf("Step1 - %f FLOPs -> %f GFLOPs\n",flops, flops/TRILLION);
+printf("Step1 - %f FLOPs -> %f GFLOPs\n",flops, flops/BILLION);
  
 start=omp_get_wtime();
  for (i=0;i<32;i++){
@@ -85,7 +85,7 @@ printf("\n Step2 - time elapsed is %f secs while time per run is %f secs\n",end-
 flop = ((8+8) * N / 4) * N;
 timeper = (end-start)/32;
 flops = flop/timeper;
-printf("Step2 - %f FLOPs -> %f GFLOPs\n",flops, flops/TRILLION);
+printf("Step2 - %f FLOPs -> %f GFLOPs\n",flops, flops/BILLION);
  
 start=omp_get_wtime();
  for (i=0;i<8;i++){
@@ -96,7 +96,7 @@ printf("\n Spep3 - time elapsed is %f secs while time per run is %f secs\n",end-
 flop = 2 * N * N + 1 * N / 8;
 timeper = (end-start)/8;
 flops = flop/timeper;
-printf("Step3 - %f FLOPs -> %f GFLOPs\n",flops, flops/TRILLION);
+printf("Step3 - %f FLOPs -> %f GFLOPs\n",flops, flops/BILLION);
 
 
 printf("\n output is %e \n",reduction);
