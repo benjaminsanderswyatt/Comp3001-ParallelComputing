@@ -52,7 +52,8 @@ float alpha=0.23f, beta=0.45f;
 end_1 = clock(); //end the timer 
 
 printf(" clock() method: %ld ms\n", (end_1 - start_1) / (CLOCKS_PER_SEC / 1000));//print the ex.time
-double flop = 10.0f * N * N + N;
+//double flop = 10.0f * N * N + N; // for slow_routine
+double flop = 80.0f * N * N + N; // for fast_routine
 printf("Flop = %f\n", flop);
 double timeper = ((double)(end_1 - start_1) / TIMES_TO_RUN) / CLOCKS_PER_SEC;
 printf("TimePer = %f s\n", timeper);
@@ -123,22 +124,24 @@ void slow_routine(float alpha, float beta) {
 
 	unsigned int i, j;
 
+	// (4 * N * N) = 268435456  ( (8*8)*N/8*N/2 ) = 268435456
 	for (i = 0; i < N; i++)
 		for (j = 0; j < N; j++)
-			A[i][j] = A[i][j] + u1[i] * v1[j] + u2[i] * v2[j]; // + * + * (4 * N * N)
+			A[i][j] = A[i][j] + u1[i] * v1[j] + u2[i] * v2[j];
 
-
+	// (3 * N * N)
 	for (i = 0; i < N; i++)
 		for (j = 0; j < N; j++)
-			x[i] = x[i] + beta * A[j][i] * y[j]; // + * * (3 * N * N)
+			x[i] = x[i] + beta * A[j][i] * y[j];
 
+	// (1 * N)
 	for (i = 0; i < N; i++)
-		x[i] = x[i] + z[i]; // + (1 * N)
+		x[i] = x[i] + z[i];
 
-
+	// (3 * N * N)
 	for (i = 0; i < N; i++) {
 		for (j = 0; j < N; j++) {
-			w[i] = w[i] + alpha * A[i][j] * x[j]; // + * * (3 * N * N)
+			w[i] = w[i] + alpha * A[i][j] * x[j];
 		}
 	}
 
@@ -151,20 +154,14 @@ void fast_routine(float alpha, float beta) {
 
 	unsigned int i, j, jj;
 
-	// 1st Loop Block
-	for (i = 0; i <= N - 4; i += 4) {
+	// 1st Loop Block ( (8*4)*N/8*N/2 -> 2N*N)
+	for (i = 0; i <= N - 2; i += 2) {
 
 		__m256 vec_u1_0 = _mm256_set1_ps(u1[i]); // u1  (0)
 		__m256 vec_u2_0 = _mm256_set1_ps(u2[i]); // u2  (0)
 
 		__m256 vec_u1_1 = _mm256_set1_ps(u1[i + 1]); // u1  (1)
 		__m256 vec_u2_1 = _mm256_set1_ps(u2[i + 1]); // u2  (1)
-
-		__m256 vec_u1_2 = _mm256_set1_ps(u1[i + 2]); // u1  (2)
-		__m256 vec_u2_2 = _mm256_set1_ps(u2[i + 2]); // u2  (2)
-
-		__m256 vec_u1_3 = _mm256_set1_ps(u1[i + 3]); // u1  (3)
-		__m256 vec_u2_3 = _mm256_set1_ps(u2[i + 3]); // u2  (3)
 
 		for (jj = 0; jj < N; jj += TILE) {
 			for (j = jj; j <= MIN(N, jj + TILE) - 8; j += 8) {
@@ -174,8 +171,6 @@ void fast_routine(float alpha, float beta) {
 
 				__m256 vec_A_0 = _mm256_load_ps(&A[i][j]); // A  (0)
 				__m256 vec_A_1 = _mm256_load_ps(&A[i + 1][j]); // A  (1)
-				__m256 vec_A_2 = _mm256_load_ps(&A[i + 2][j]); // A  (2)
-				__m256 vec_A_3 = _mm256_load_ps(&A[i + 3][j]); // A  (3)
 
 				__m256 vec_uvA_0 = _mm256_fmadd_ps(vec_u1_0, vec_v1, vec_A_0); // u1 * v1[j] + A[i][j]  (0)
 				__m256 vec_uvAuv_0 = _mm256_fmadd_ps(vec_u2_0, vec_v2, vec_uvA_0); //  u2 * v2[j] + vec_uvA  (0)
@@ -185,22 +180,12 @@ void fast_routine(float alpha, float beta) {
 				__m256 vec_uvAuv_1 = _mm256_fmadd_ps(vec_u2_1, vec_v2, vec_uvA_1); //  u2 * v2[j] + vec_uvA  (1)
 				_mm256_store_ps(&A[i + 1][j], vec_uvAuv_1); //  (1)
 
-				__m256 vec_uvA_2 = _mm256_fmadd_ps(vec_u1_2, vec_v1, vec_A_2); // u1 * v1[j] + A[i][j]  (2)
-				__m256 vec_uvAuv_2 = _mm256_fmadd_ps(vec_u2_2, vec_v2, vec_uvA_2); //  u2 * v2[j] + vec_uvA  (2)
-				_mm256_store_ps(&A[i + 2][j], vec_uvAuv_2); //  (2)
-
-				__m256 vec_uvA_3 = _mm256_fmadd_ps(vec_u1_3, vec_v1, vec_A_3); // u1 * v1[j] + A[i][j]  (3)
-				__m256 vec_uvAuv_3 = _mm256_fmadd_ps(vec_u2_3, vec_v2, vec_uvA_3); //  u2 * v2[j] + vec_uvA  (3)
-				_mm256_store_ps(&A[i + 3][j], vec_uvAuv_3); //  (3)
-
 			}
 		}
 		
 		for (; j < N; j++) { // Leftovers j
 			A[i][j] = A[i][j] + u1[i] * v1[j] + u2[i] * v2[j]; //  (0)
 			A[i + 1][j] = A[i + 1][j] + u1[i + 1] * v1[j] + u2[i + 1] * v2[j]; //  (1)
-			A[i + 2][j] = A[i + 2][j] + u1[i + 2] * v1[j] + u2[i + 2] * v2[j]; //  (2)
-			A[i + 3][j] = A[i + 3][j] + u1[i + 3] * v1[j] + u2[i + 3] * v2[j]; //  (3)
 		}
 	}
 
@@ -239,7 +224,7 @@ void fast_routine(float alpha, float beta) {
 
 
 
-	// 2nd Loop Block
+	// 2nd Loop Block ( (8*8)*N/8*N/4 )
 	for (i = 0; i <= N - 4; i += 4) {
 
 		__m256 vec_y_0 = _mm256_set1_ps(beta * y[i]); // beta * y[i]  (0)
@@ -306,7 +291,7 @@ void fast_routine(float alpha, float beta) {
 
 	
 
-	// 3rd Loop Block
+	// 3rd Loop Block ( (8)*N/8 )
 	for (i = 0; i <= N - 8; i += 8) {
 		__m256 vec_x = _mm256_load_ps(&x[i]); // x
 		__m256 vec_z = _mm256_load_ps(&z[i]); // z
@@ -330,7 +315,7 @@ void fast_routine(float alpha, float beta) {
 
 
 
-	// 4th Loop Block
+	// 4th Loop Block ( (8*8) * N/8 * N/4 -> 2N*N )
 	for (i = 0; i <= N - 4; i += 4) {
 
 		__m256 vec_w_0 = _mm256_setzero_ps(); //  (0)
