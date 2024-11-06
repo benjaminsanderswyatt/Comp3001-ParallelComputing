@@ -71,7 +71,7 @@ start=omp_get_wtime();
  }
 end=omp_get_wtime();
 printf("\n Step1 - time elapsed is %f secs while time per run is %f secs\n",end-start, (end-start)/262144);
-flop = (8+8) * N / 4;
+flop = (8*8) * N / 4; // 16N
 timeper = (end-start)/262144;
 flops = flop/timeper;
 printf("Step1 - %f FLOPs -> %f GFLOPs\n",flops, flops/BILLION);
@@ -82,7 +82,7 @@ start=omp_get_wtime();
  }
 end=omp_get_wtime();
 printf("\n Step2 - time elapsed is %f secs while time per run is %f secs\n",end-start, (end-start)/32);
-flop = ((8+8) * N / 4) * N;
+flop = ((8*8) * N / 4) * N; // 16N*N
 timeper = (end-start)/32;
 flops = flop/timeper;
 printf("Step2 - %f FLOPs -> %f GFLOPs\n",flops, flops/BILLION);
@@ -93,7 +93,7 @@ start=omp_get_wtime();
  }
 end=omp_get_wtime();
 printf("\n Spep3 - time elapsed is %f secs while time per run is %f secs\n",end-start, (end-start)/8);
-flop = 2 * N * N + 1 * N / 8;
+flop = 2 * N * N + 1 * N / 8; // 2N*N + N/8
 timeper = (end-start)/8;
 flops = flop/timeper;
 printf("Step3 - %f FLOPs -> %f GFLOPs\n",flops, flops/BILLION);
