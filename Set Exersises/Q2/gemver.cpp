@@ -52,8 +52,7 @@ float alpha=0.23f, beta=0.45f;
 end_1 = clock(); //end the timer 
 
 printf(" clock() method: %ld ms\n", (end_1 - start_1) / (CLOCKS_PER_SEC / 1000));//print the ex.time
-//double flop = 10.0f * N * N + N; // for slow_routine
-double flop = 80.0f * N * N + N; // for fast_routine
+double flop = 10.0f * N * N + N;
 printf("Flop = %f\n", flop);
 double timeper = ((double)(end_1 - start_1) / TIMES_TO_RUN) / CLOCKS_PER_SEC;
 printf("TimePer = %f s\n", timeper);
@@ -124,7 +123,7 @@ void slow_routine(float alpha, float beta) {
 
 	unsigned int i, j;
 
-	// (4 * N * N) = 268435456  ( (8*8)*N/8*N/2 ) = 268435456
+	// (4 * N * N)
 	for (i = 0; i < N; i++)
 		for (j = 0; j < N; j++)
 			A[i][j] = A[i][j] + u1[i] * v1[j] + u2[i] * v2[j];
@@ -146,7 +145,6 @@ void slow_routine(float alpha, float beta) {
 	}
 
 	// FLOP: 10N*N + N
-	// = 5497.56 Giga FLOP (to 2 decimal places)
 }
 
 // I have optimized this routine
