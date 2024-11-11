@@ -1,0 +1,79 @@
+// 1st Loop Block
+for (i = 0; i < N; i += 8) {
+
+	__m256 vec_u1_0 = _mm256_set1_ps(u1[i]); // u1  (0)
+	__m256 vec_u2_0 = _mm256_set1_ps(u2[i]); // u2  (0)
+
+	__m256 vec_u1_1 = _mm256_set1_ps(u1[i + 1]); // u1  (1)
+	__m256 vec_u2_1 = _mm256_set1_ps(u2[i + 1]); // u2  (1)
+
+	__m256 vec_u1_2 = _mm256_set1_ps(u1[i + 2]); // u1  (2)
+	__m256 vec_u2_2 = _mm256_set1_ps(u2[i + 2]); // u2  (2)
+
+	__m256 vec_u1_3 = _mm256_set1_ps(u1[i + 3]); // u1  (3)
+	__m256 vec_u2_3 = _mm256_set1_ps(u2[i + 3]); // u2  (3)
+
+
+	__m256 vec_u1_4 = _mm256_set1_ps(u1[i + 4]); // u1  (4)
+	__m256 vec_u2_4 = _mm256_set1_ps(u2[i + 4]); // u2  (4)
+
+	__m256 vec_u1_5 = _mm256_set1_ps(u1[i + 5]); // u1  (5)
+	__m256 vec_u2_5 = _mm256_set1_ps(u2[i + 5]); // u2  (5)
+
+	__m256 vec_u1_6 = _mm256_set1_ps(u1[i + 6]); // u1  (6)
+	__m256 vec_u2_6 = _mm256_set1_ps(u2[i + 6]); // u2  (6)
+
+	__m256 vec_u1_7 = _mm256_set1_ps(u1[i + 7]); // u1  (7)
+	__m256 vec_u2_7 = _mm256_set1_ps(u2[i + 7]); // u2  (7)
+
+	for (jj = 0; jj < N; jj += TILE) {
+		for (j = jj; j < MIN(N, jj + TILE); j += 8) {
+			// A[i][j] = A[i][j] + vec_u1 * v1[j] + vec_u2 * v2[j];
+			__m256 vec_v1 = _mm256_load_ps(&v1[j]); // v1
+			__m256 vec_v2 = _mm256_load_ps(&v2[j]); // v2
+
+			__m256 vec_A_0 = _mm256_load_ps(&A[i][j]); // A  (0)
+			__m256 vec_A_1 = _mm256_load_ps(&A[i + 1][j]); // A  (1)
+			__m256 vec_A_2 = _mm256_load_ps(&A[i + 2][j]); // A  (1)
+			__m256 vec_A_3 = _mm256_load_ps(&A[i + 3][j]); // A  (1)
+			__m256 vec_A_4 = _mm256_load_ps(&A[i + 4][j]); // A  (1)
+			__m256 vec_A_5 = _mm256_load_ps(&A[i + 5][j]); // A  (1)
+			__m256 vec_A_6 = _mm256_load_ps(&A[i + 6][j]); // A  (1)
+			__m256 vec_A_7 = _mm256_load_ps(&A[i + 7][j]); // A  (1)
+
+			__m256 vec_uvA_0 = _mm256_fmadd_ps(vec_u1_0, vec_v1, vec_A_0); // u1 * v1[j] + A[i][j]  (0)
+			__m256 vec_uvAuv_0 = _mm256_fmadd_ps(vec_u2_0, vec_v2, vec_uvA_0); //  u2 * v2[j] + vec_uvA  (0)
+			_mm256_store_ps(&A[i][j], vec_uvAuv_0); //  (0)
+
+			__m256 vec_uvA_1 = _mm256_fmadd_ps(vec_u1_1, vec_v1, vec_A_1); // u1 * v1[j] + A[i][j]  (1)
+			__m256 vec_uvAuv_1 = _mm256_fmadd_ps(vec_u2_1, vec_v2, vec_uvA_1); //  u2 * v2[j] + vec_uvA  (1)
+			_mm256_store_ps(&A[i + 1][j], vec_uvAuv_1); //  (1)
+
+			__m256 vec_uvA_2 = _mm256_fmadd_ps(vec_u1_2, vec_v1, vec_A_2); // u1 * v1[j] + A[i][j]  (2)
+			__m256 vec_uvAuv_2 = _mm256_fmadd_ps(vec_u2_2, vec_v2, vec_uvA_2); //  u2 * v2[j] + vec_uvA  (2)
+			_mm256_store_ps(&A[i + 2][j], vec_uvAuv_1); //  (2)
+
+			__m256 vec_uvA_3 = _mm256_fmadd_ps(vec_u1_3, vec_v1, vec_A_3); // u1 * v1[j] + A[i][j]  (1)
+			__m256 vec_uvAuv_3 = _mm256_fmadd_ps(vec_u2_3, vec_v2, vec_uvA_3); //  u2 * v2[j] + vec_uvA  (1)
+			_mm256_store_ps(&A[i + 3][j], vec_uvAuv_1); //  (1)
+
+
+			__m256 vec_uvA_4 = _mm256_fmadd_ps(vec_u1_4, vec_v1, vec_A_4); // u1 * v1[j] + A[i][j]  (1)
+			__m256 vec_uvAuv_4 = _mm256_fmadd_ps(vec_u2_4, vec_v2, vec_uvA_4); //  u2 * v2[j] + vec_uvA  (1)
+			_mm256_store_ps(&A[i + 4][j], vec_uvAuv_1); //  (1)
+
+			__m256 vec_uvA_5 = _mm256_fmadd_ps(vec_u1_5, vec_v1, vec_A_5); // u1 * v1[j] + A[i][j]  (1)
+			__m256 vec_uvAuv_5 = _mm256_fmadd_ps(vec_u2_5, vec_v2, vec_uvA_5); //  u2 * v2[j] + vec_uvA  (1)
+			_mm256_store_ps(&A[i + 5][j], vec_uvAuv_1); //  (1)
+
+			__m256 vec_uvA_6 = _mm256_fmadd_ps(vec_u1_6, vec_v1, vec_A_6); // u1 * v1[j] + A[i][j]  (1)
+			__m256 vec_uvAuv_6 = _mm256_fmadd_ps(vec_u2_6, vec_v2, vec_uvA_6); //  u2 * v2[j] + vec_uvA  (1)
+			_mm256_store_ps(&A[i + 6][j], vec_uvAuv_1); //  (1)
+
+			__m256 vec_uvA_7 = _mm256_fmadd_ps(vec_u1_7, vec_v1, vec_A_7); // u1 * v1[j] + A[i][j]  (1)
+			__m256 vec_uvAuv_7 = _mm256_fmadd_ps(vec_u2_7, vec_v2, vec_uvA_7); //  u2 * v2[j] + vec_uvA  (1)
+			_mm256_store_ps(&A[i + 7][j], vec_uvAuv_1); //  (1)
+
+		}
+	}
+}

@@ -1,0 +1,82 @@
+// 4th Loop Block
+for (i = 0; i < N; i += 4) {
+
+	__m256 vec_w_0 = _mm256_setzero_ps(); //  (0)
+	__m256 vec_w_1 = _mm256_setzero_ps(); //  (1)
+	__m256 vec_w_2 = _mm256_setzero_ps(); //  (2)
+	__m256 vec_w_3 = _mm256_setzero_ps(); //  (3)
+
+	__m256 vec_alpha = _mm256_set1_ps(alpha); // alpha
+
+	for (jj = 0; jj < N; jj += TILE) {
+		for (j = jj; j < MIN(N, jj + TILE); j += 8) {
+			// vec_w += alpha * A[i][j] * x[j];
+			__m256 vec_x = _mm256_load_ps(&x[j]); // x
+
+			__m256 vec_A_0 = _mm256_load_ps(&A[i][j]); // A  (0)
+			__m256 vec_Ax_0 = _mm256_mul_ps(vec_A_0, vec_x); // A[i][j] * x[j]  (0)
+
+			vec_w_0 = _mm256_fmadd_ps(vec_alpha, vec_Ax_0, vec_w_0); //  alpha * Ax + vec_w  (0)
+
+			__m256 vec_A_1 = _mm256_load_ps(&A[i + 1][j]); // A  (1)
+			__m256 vec_Ax_1 = _mm256_mul_ps(vec_A_1, vec_x); // A[i][j] * x[j]  (1)
+
+			vec_w_1 = _mm256_fmadd_ps(vec_alpha, vec_Ax_1, vec_w_1); //  alpha * Ax + vec_w  (1)
+
+			__m256 vec_A_2 = _mm256_load_ps(&A[i + 2][j]); // A  (2)
+			__m256 vec_Ax_2 = _mm256_mul_ps(vec_A_2, vec_x); // A[i][j] * x[j]  (2)
+
+			vec_w_2 = _mm256_fmadd_ps(vec_alpha, vec_Ax_2, vec_w_2); //  alpha * Ax + vec_w  (2)
+
+			__m256 vec_A_3 = _mm256_load_ps(&A[i + 3][j]); // A  (3)
+			__m256 vec_Ax_3 = _mm256_mul_ps(vec_A_3, vec_x); // A[i][j] * x[j]  (3)
+
+			vec_w_3 = _mm256_fmadd_ps(vec_alpha, vec_Ax_3, vec_w_3); //  alpha * Ax + vec_w  (3)
+		}
+	}
+
+	//w[i] = vec_w;  (0)
+	__m128 low_0 = _mm256_extractf128_ps(vec_w_0, 0); // low vec_w
+	__m128 high_0 = _mm256_extractf128_ps(vec_w_0, 1); // high vec_w
+
+	__m128 sum_lh_0 = _mm_add_ps(low_0, high_0); // low + high
+
+	sum_lh_0 = _mm_hadd_ps(sum_lh_0, sum_lh_0); // (a0 + a1 , a2 + a3 , b0 + b1 , b2 + b3)
+	sum_lh_0 = _mm_hadd_ps(sum_lh_0, sum_lh_0); // (a0 + a1 + a2 + a3 , ...)
+
+	_mm_store_ss((float*)&w[i], sum_lh_0); //  (0)
+
+
+	//w[i] = vec_w;  (1)
+	__m128 low_1 = _mm256_extractf128_ps(vec_w_1, 0); // low vec_w
+	__m128 high_1 = _mm256_extractf128_ps(vec_w_1, 1); // high vec_w
+
+	__m128 sum_lh_1 = _mm_add_ps(low_1, high_1); // low + high
+
+	sum_lh_1 = _mm_hadd_ps(sum_lh_1, sum_lh_1); // (a0 + a1 , a2 + a3 , b0 + b1 , b2 + b3)
+	sum_lh_1 = _mm_hadd_ps(sum_lh_1, sum_lh_1); // (a0 + a1 + a2 + a3 , ...)
+
+	_mm_store_ss((float*)&w[i + 1], sum_lh_1); //  (1)
+
+	//w[i] = vec_w;  (2)
+	__m128 low_2 = _mm256_extractf128_ps(vec_w_2, 0); // low vec_w
+	__m128 high_2 = _mm256_extractf128_ps(vec_w_2, 1); // high vec_w
+
+	__m128 sum_lh_2 = _mm_add_ps(low_2, high_2); // low + high
+
+	sum_lh_2 = _mm_hadd_ps(sum_lh_2, sum_lh_2); // (a0 + a1 , a2 + a3 , b0 + b1 , b2 + b3)
+	sum_lh_2 = _mm_hadd_ps(sum_lh_2, sum_lh_2); // (a0 + a1 + a2 + a3 , ...)
+
+	_mm_store_ss((float*)&w[i + 2], sum_lh_2); //  (2)
+
+	//w[i] = vec_w;  (3)
+	__m128 low_3 = _mm256_extractf128_ps(vec_w_3, 0); // low vec_w
+	__m128 high_3 = _mm256_extractf128_ps(vec_w_3, 1); // high vec_w
+
+	__m128 sum_lh_3 = _mm_add_ps(low_3, high_3); // low + high
+
+	sum_lh_3 = _mm_hadd_ps(sum_lh_3, sum_lh_3); // (a0 + a1 , a2 + a3 , b0 + b1 , b2 + b3)
+	sum_lh_3 = _mm_hadd_ps(sum_lh_3, sum_lh_3); // (a0 + a1 + a2 + a3 , ...)
+
+	_mm_store_ss((float*)&w[i + 3], sum_lh_3); //  (3)
+}
