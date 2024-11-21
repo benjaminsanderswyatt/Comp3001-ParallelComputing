@@ -120,7 +120,7 @@ void helmholtz ( int m, int n, int it_max, double alpha, double omega, double to
   // USE: #pragma omp parallel for  |   aligned(f:64) private(i, j) shared(u, f)
   for ( j = 0; j < n; j++ )
   {
-    // USE: #pragma omp simd
+    // USE: #pragma omp simd    |   aligned(u: 64)
     for ( i = 0; i < m; i++ )
     {
       u[i+j*m] = 0.0;
@@ -170,7 +170,7 @@ void error_check ( int m, int n, double alpha, double u[], double f[] ) {
 
   u_norm = 0.0;
 
-
+  // USE: #pragma omp parallel for  |   aligned(u:64) private(i, j) shared(u_norm, u) reduction(+:u_norm)
   for ( j = 0; j < n; j++ )
   {
     for ( i = 0; i < m; i++ )
@@ -184,7 +184,7 @@ void error_check ( int m, int n, double alpha, double u[], double f[] ) {
   u_true_norm = 0.0;
   error_norm = 0.0;
 
-
+  // USE: #pragma omp parallel for  |    aligned(u:64) private(i, j, x, y, u_true) shared(u, u_true_norm, error_norm) reduction(+:error_norm, u_true_norm)
   for ( j = 0; j < n; j++ )
   {
     for ( i = 0; i < m; i++ )
@@ -262,7 +262,7 @@ void jacobi ( int m, int n, double alpha, double omega, double u[], double f[],
     // USE: #pragma omp parallel for    |   aligned(u, u_old: 64) private(i,j) shared(u, u_old)
     for ( j = 0; j < n; j++ )                           
     {
-      // USE: #pragma omp simd
+      // USE: #pragma omp simd  |   aligned(u, u_old: 64)
       for ( i = 0; i < m; i++ )
       {
         u_old[i+m*j] = u[i+m*j];
@@ -272,7 +272,7 @@ void jacobi ( int m, int n, double alpha, double omega, double u[], double f[],
     // USE: #pragma omp parallel for    |   aligned(f, u_old: 64) private(i, j, error) shared(u, u_old, f, ax, ay, b, omega) reduction(+:error_norm)
     for ( j = 0; j < n; j++ )           
     {
-      // USE: #pragma omp simd
+      // USE: #pragma omp simd  |   aligned(f, u_old: 64)
       for ( i = 0; i < m; i++ )
       {
         /*
@@ -349,7 +349,7 @@ double *rhs_set ( int m, int n, double alpha ) {
   // USE: #pragma omp parallel for  |   aligned(f: 64) private(i, j) shared(f)
   for ( j = 0; j < n; j++ )
   {
-    // USE: #pragma omp simd
+    // USE: #pragma omp simd    |   aligned(f: 64)
     for ( i = 0; i < m; i++ )
     {
       f[i+j*m] = 0.0;
@@ -398,7 +398,7 @@ double *rhs_set ( int m, int n, double alpha ) {
     // USE: #pragma omp parallel for    |   aligned(f: 64) private(i, j, x, y) shared(f, alpha)
     for ( j = 1; j < n - 1; j++ )
     {
-      // USE: #pragma omp simd
+      // USE: #pragma omp simd  |   aligned(f: 64)
       for ( i = 1; i < m - 1; i++ )
       {
         x = ( double ) ( 2 * i - m + 1 ) / ( double ) ( m - 1 );
