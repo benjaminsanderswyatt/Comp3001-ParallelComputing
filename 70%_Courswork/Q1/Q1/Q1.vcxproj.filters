@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\Helmholtz.c">
+    <ClCompile Include="..\Temp\Helmholtz.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
