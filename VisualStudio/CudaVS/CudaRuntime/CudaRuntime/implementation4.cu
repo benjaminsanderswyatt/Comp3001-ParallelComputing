@@ -7,6 +7,7 @@
 
 #define N 16  //arrays input size
 #define TIMES 1 //times to run
+#define TILE 1
 #define ARITHMETICAL_OPS N*N*N*2
 
 #define EPSILON 0.00001
@@ -23,37 +24,58 @@ unsigned short int equal(float const x, float const y);
 void init(float* C, float *A, float *B); // Init
 
 
-// --------------------------------------- implementation #3 ---------------------------------------
-__global__ void implementation_3(float* C, float* A, float* B) {
+// --------------------------------------- implementation #4 ---------------------------------------
+__global__ void mmm_tiled(float* C, float* A, float* B) {
 
-	printf("\nHello from thread %d of block %d", threadIdx.x, blockIdx.x);
+
+
+	__shared__ float aa[16][16];
+
+	__shared__ float bb[16][16];
 
 	float tmp = 0.0;
 
-
-
-	int i = blockIdx.x * blockDim.x + threadIdx.x; //i loop has been parallelized 
-
-	int j = blockIdx.y * blockDim.y + threadIdx.y; //j loop has been parallelized 
+	int k, m;
 
 
 
-	for (int k = 0; k < N; k++) {
+	int row_A = 16 * blockIdx.y + threadIdx.y;
 
-		tmp += A[N * i + k] * B[N * k + j];
+	int col_B = blockIdx.x * 16 + threadIdx.x;
+
+
+
+	for (m = 0; m < N / 16; m++) {
+
+		aa[threadIdx.y][threadIdx.x] = A[N * (row_A)+(m * 16 + threadIdx.x)];
+
+		bb[threadIdx.y][threadIdx.x] = B[N * (m * TILE + threadIdx.y) + (col_B)];
+
+
+
+		__syncthreads();
+
+
+
+		for (k = 0; k < 16; k++) {
+
+			tmp += aa[threadIdx.y][k] * bb[k][threadIdx.x];
+
+		}
+
+		__syncthreads();
 
 	}
 
+	C[N * row_A + col_B] = tmp;
 
-
-	C[N * i + j] = tmp;
 }
 
 
 
 
 int main() {
-	printf("\n------------- implementation #3 -------------\n");
+	printf("\n------------- implementation #4 -------------\n");
 
 	cudaError_t cudaStatus;
 
@@ -94,7 +116,7 @@ int main() {
 	cudaEventRecord(start, 0); //get timer value
 
 	for (int i = 0; i < TIMES; i++) {
-		implementation_3 <<<dimGrid, dimBlock>>> (C,A,B);
+		mmm_tiled <<<dimGrid, dimBlock>>> (C,A,B);
 
 	}
 

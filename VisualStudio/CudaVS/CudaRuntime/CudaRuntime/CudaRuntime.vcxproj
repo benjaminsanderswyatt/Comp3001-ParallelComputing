@@ -11,7 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="implementation3.cu" />
+    <CudaCompile Include="..\..\..\..\..\comp3001\comp3001-master\week11 - GPU_3rd\mmm_solutions.cu" />
+    <CudaCompile Include="implementation4.cu" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{34F7E4AF-7BD2-415D-94B2-203B3C51851F}</ProjectGuid>
