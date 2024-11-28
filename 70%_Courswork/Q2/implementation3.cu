@@ -3,6 +3,7 @@
 #include <device_launch_parameters.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 
 #define N 16  //arrays input size
 #define TIMES 1 //times to run
@@ -52,11 +53,7 @@ __global__ void implementation_3(float* C, float* A, float* B) {
 
 
 int main() {
-	// --------------------------------------- implementation #3 ---------------------------------------
 	printf("\n------------- implementation #3 -------------\n");
-
-	
-
 
 	cudaError_t cudaStatus;
 
@@ -75,18 +72,20 @@ int main() {
 
 
 	/* Copy the A array from the HOST memory to the DEVICE memory */
-	cudaStatus = cudaMemcpyToSymbol(device_A, A, N * N * N * sizeof(float));
+	cudaStatus = cudaMemcpyToSymbol(device_A, A, N * N * sizeof(float));
 	if (cudaStatus != cudaSuccess) {
 		printf("\ncudaMemcpy failed!");
 		return -1;
 	}
 
-	/* Copy the C array from the HOST memory to the DEVICE memory */
-	cudaStatus = cudaMemcpyToSymbol(device_C, C, N * N * sizeof(float));
+	/* Copy the B array from the HOST memory to the DEVICE memory */
+	cudaStatus = cudaMemcpyToSymbol(device_B, B, N * N * sizeof(float));
 	if (cudaStatus != cudaSuccess) {
 		printf("\ncudaMemcpy failed!");
 		return -1;
 	}
+
+
 
 	dim3 dimBlock(16, 16, 1);
 	dim3 dimGrid(N / 16, N / 16, 1);
@@ -107,43 +106,20 @@ int main() {
 	cudaEventDestroy(stop);
 
 	/* Copy back the result from the DEVICE memory to the HOST memory */
-	cudaStatus = cudaMemcpyFromSymbol(sum, device_sum, N * N * N * sizeof(float));
+	cudaStatus = cudaMemcpyFromSymbol(C, device_C, N * N * sizeof(float));
 	if (cudaStatus != cudaSuccess) {
 		printf("\ncudaMemcpy failed!");
 		return -1;
 	}
 
+	//do not forget to print the flops value achieved
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	// Error message
-	cudaError_t error_implementation_3 = cudaGetLastError();
-	if (error_implementation_3 != cudaSuccess) {
-		printf("Error: %s\n", cudaGetErrorString(error_implementation_3));
+	/*  Handling function of the CUDA runtime application programming interface.
+	*   Returns the last error from a runtime call.
+	*/
+	cudaError_t error = cudaGetLastError();
+	if (error != cudaSuccess) {
+		printf("Error: %s\n", cudaGetErrorString(error));
 	}
 
 	if (compare(C,A,B) == 0)
@@ -151,12 +127,13 @@ int main() {
 	else
 		printf("\nResult is FALSE\n");
 
-	std::chrono::duration<double> elapsed_implementaion_3 = finish_implementation_3 - start_implementation_3;
-	std::cout << "Elapsed time: " << elapsed_implementaion_3.count() << " s\n";
-
-
-
 	cudaDeviceReset();
+
+	cudaStatus = cudaDeviceReset();
+	if (cudaStatus != cudaSuccess) {
+		printf("\ncuda Reset failed!");
+		return -1;
+	}
 
 	return 0;
 }
@@ -193,7 +170,7 @@ unsigned short int compare(const float* C, const float* A, const float* B) {
 	for (j = 0; j < (N * N); j++)
 		if (equal(C[j], test[j]) == 1) {
 			printf("\n j=%d %f %f\n", j, test[j], C[j]);
-			return 1;
+			return -1;
 		}
 
 	return 0;
