@@ -32,6 +32,7 @@ inline unsigned short int equal(float const a, float const b);
 
 #define MAX_NUMBER_OF_BLOCKS_PER_DIM 65535 //max number of blocks that our GPU can handle (for one dimension only)
 
+#define TILE 32
 
 __global__ void diotgen_ver1() {
 
@@ -43,44 +44,9 @@ __global__ void diotgen_ver1() {
 				for (int s = 0; s < N; s++)
 					sum[r][q][p] = sum[r][q][p] + A[r][q][s] * C[s][p];
 */
-
-/*
-for (int r = 0; r < N; r++)
-	for (int q = 0; q < N; q++)
-		for (int s = 0; s < N; s++)
-			for (int p = 0; p < N; p++)
-				sum[r][q][p] = sum[r][q][p] + A[r][q][s] * C[s][p];
-
-
-
-	for (int r = 0; r < N; r++)
-		for (int q = 0; q < N; q++)
-			for (int p = 0; p < N; p++)
-				float tempSum = sum[r][q][p];
-				for (int s = 0; s < N; s++)
-					tempSum = tempSum + A[r][q][s] * C[s][p];
-				sum[r][q][p] = tempSum;
-
-
-
-
-
-	int r = blockIdx.x * blockDim.x + threadIdx.x;
-	int q = blockIdx.y * blockDim.y + threadIdx.y;
-	int p = blockIdx.z * blockDim.z + threadIdx.z;
-
-
-	if (r < N && q < N && p < N) {
-		float tempSum = 0.0f;
-
-		for (int s = 0; s < N; s++) {
-			tempSum += device_A[r][q][s] * device_C[s][p];
-		}
-
-		device_sum[r][q][p] = tempSum;
-	}
-*/
-
+	/*
+	// CUDA ise
+	 
 	int r = blockIdx.x * blockDim.x + threadIdx.x;
 	int q = blockIdx.y * blockDim.y + threadIdx.y;
 	int p = blockIdx.z * blockDim.z + threadIdx.z;
@@ -94,8 +60,42 @@ for (int r = 0; r < N; r++)
 		}
 
 		device_sum[r][q][p] = tempSum;
-		// 0, 0, 128
 	}
+	*/
+	
+
+	// TILE it
+
+	int r = blockIdx.x * blockDim.x + threadIdx.x;
+	int q = blockIdx.y * blockDim.y + threadIdx.y;
+	int p = blockIdx.z * blockDim.z + threadIdx.z;
+
+
+	int x = blockIdx.x * TILE + threadIdx.x;
+	int y = blockIdx.y * TILE + threadIdx.y;
+
+	float tempSum = 0.0f;
+
+	for (int m = 0; m < N / TILE; m++) {
+
+		shared_A[threadIdx.z][threadIdx.y][threadIdx.x] = device_A[][][];
+		shared_C[threadIdx.y][threadIdx.x] = device_C[][];
+
+		__syncthreads();
+
+		for (int s = 0; s < N; s++) {
+			tempSum = tempSum + shared_A[r][q][s] * shared_C[s][p];
+		}
+
+		__syncthreads();
+	}
+
+	device_sum[r][q][p] = tempSum;
+	
+
+
+
+
 }
 
 int main()
