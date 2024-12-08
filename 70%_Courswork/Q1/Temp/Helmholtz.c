@@ -30,8 +30,8 @@ int main ( ) {
 
 
 
-
-  /* TEST
+  /*
+  // TEST
   int procs, maxt, inpar, dynamic, nested;
 
   #pragma omp parallel 
@@ -107,20 +107,24 @@ void helmholtz ( int m, int n, int it_max, double alpha, double omega, double to
   /*
     Initialize the data.
   */
+  //f = (double*)_mm_malloc(m * n * sizeof(double), 64);
+
+
   f = rhs_set ( m, n, alpha );
 
-  u = ( double * ) malloc ( m * n * sizeof ( double ) );
+  //u = ( double * ) malloc ( m * n * sizeof ( double ) );
   // USE: u = ( double * ) _mm_malloc (m * n * sizeof(float), 64);
+  u = (double*)_mm_malloc(m * n * sizeof(double), 64);
 
 
 
 
-
-
-  // USE: #pragma omp parallel for  |   aligned(f:64) private(i, j) shared(u, f)
+  // USE: #pragma omp parallel for  |   private(i, j) shared(u, f)
+//#pragma omp parallel for private(i, j) shared(u, f)
   for ( j = 0; j < n; j++ )
   {
     // USE: #pragma omp simd    |   aligned(u: 64)
+#pragma omp simd aligned(u:64)
     for ( i = 0; i < m; i++ )
     {
       u[i+j*m] = 0.0;
