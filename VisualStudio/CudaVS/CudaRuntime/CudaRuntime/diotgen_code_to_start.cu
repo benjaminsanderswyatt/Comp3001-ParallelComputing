@@ -192,7 +192,8 @@ int main()
 		dim3 dimBlock(8,8 ,8 );
 		dim3 dimGrid((N + 7) / 8, (N + 7) / 8, (N +7) / 8);
 
-		diotgen_ver1 << <dimGrid, dimBlock >> > ( );
+		//diotgen_ver1 << <dimGrid, dimBlock >> > ( );
+		diotgen_tile_it << <dimGrid, dimBlock >> > ( );
 		
 		
 

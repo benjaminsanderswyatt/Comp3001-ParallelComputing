@@ -1,0 +1,8 @@
+Dont use this one
+g++ implementaion2.cpp -o exec -O2 -fopenmp -lm -fopt-info-vec-optimized
+
+
+in visual studio terminal
+cl implementaion2.cpp -openmp:experimental
+
+./implementaion2.exe
