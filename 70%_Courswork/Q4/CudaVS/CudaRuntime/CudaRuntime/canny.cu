@@ -134,6 +134,8 @@ void Sobel_Original() {
 //#define sqr(Gx, Gy) ((abs(Gx) + abs(Gy)) / 2)
 #define sqrted(Gx, Gy) ((Gx*Gx + Gy*Gy)^)
 
+// pixels are 8 bits ACX gives 32 per instruction
+
 void Sobel() {
 
 
@@ -198,7 +200,7 @@ void Sobel() {
 			Gx = 0;
 			Gy = 0;
 
-			Gx += filt[row - 1][col - 1] * GxMask[0][0];
+			Gx += filt[row - 1][col - 1] * GxMask[0][0];	// half of threse are the same so fix why perform  calculation twice
 			Gy += filt[row - 1][col - 1] * GyMask[0][0];
 
 			Gx += filt[row - 1][col] * GxMask[0][1];

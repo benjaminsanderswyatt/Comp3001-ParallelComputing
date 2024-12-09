@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <math.h>
 
-#define N 64  //arrays input size
+#define N 128  //arrays input size
 #define TIMES 1 //times to run
 #define ARITHMETICAL_OPS N*N*N*2
 
@@ -108,7 +108,7 @@ int main() {
 	// copy arrays from host to device
 	cudaStatus = cudaMemcpy(A_d, A, N * N * sizeof(float), cudaMemcpyHostToDevice); //copy array from host to GPU
 	if (cudaStatus != cudaSuccess) {
-		printf("\ncuda copy failed");
+		printf("\nA cuda copy failed");
 		cudaFree(C_d); cudaFree(A_d); cudaFree(B_d);
 		return -1;
 	}
@@ -116,7 +116,7 @@ int main() {
 	cudaStatus = cudaMemcpy(B_d, B, N * N * sizeof(float), cudaMemcpyHostToDevice); //copy array from host to GPU
 	if (cudaStatus != cudaSuccess) {
 		cudaFree(C_d); cudaFree(A_d); cudaFree(B_d);
-		printf("\ncuda copy failed");
+		printf("\nB cuda copy failed");
 		return -1;
 	}
 
@@ -129,7 +129,7 @@ int main() {
 
 	cudaStatus = cudaMemcpy(C, C_d, N * N * sizeof(float), cudaMemcpyDeviceToHost); //copy array from GPU back to CPU
 	if (cudaStatus != cudaSuccess) {
-		printf("\ncuda copy failed");
+		printf("\nC cuda copy failed");
 		cudaFree(C_d); cudaFree(A_d); cudaFree(B_d);
 		return -1;
 	}

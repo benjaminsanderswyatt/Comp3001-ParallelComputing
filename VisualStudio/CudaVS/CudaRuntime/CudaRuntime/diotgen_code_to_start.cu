@@ -85,6 +85,36 @@ __global__ void diotgen_tile_it() {
 
 }
 
+__global__ void diotgen_3d_tile_it() {
+	// TILE it
+
+	__shared__ float shared_A[TILE][TILE][TILE];
+	__shared__ float shared_C[TILE][TILE];
+
+	int x = blockIdx.x * TILE + threadIdx.x;
+	int y = blockIdx.y * TILE + threadIdx.y;
+	int z = blockIdx.z * TILE + threadIdx.z;
+
+
+	float tempSum = 0.0f;
+	for (int m = 0; m < N / TILE; m++) {
+
+		shared_A[threadIdx.z][threadIdx.y][threadIdx.x] = device_A[z][y][m * TILE + threadIdx.x]; // Tiled rows
+		shared_C[threadIdx.y][threadIdx.x] = device_C[m * TILE + threadIdx.y][x]; // Tiled columns
+
+		__syncthreads();
+
+		for (int s = 0; s < TILE; s++) {
+			tempSum = tempSum + shared_A[threadIdx.z][threadIdx.y][s] * shared_C[s][threadIdx.x];
+		}
+
+		__syncthreads();
+	}
+	
+	device_sum[z][y][x] = tempSum;
+
+}
+
 
 __global__ void diotgen_ver1() {
 
@@ -193,7 +223,8 @@ int main()
 		dim3 dimGrid((N + 7) / 8, (N + 7) / 8, (N +7) / 8);
 
 		//diotgen_ver1 << <dimGrid, dimBlock >> > ( );
-		diotgen_tile_it << <dimGrid, dimBlock >> > ( );
+		//diotgen_tile_it << <dimGrid, dimBlock >> > ( );
+		diotgen_3d_tile_it << <dimGrid, dimBlock >> > ( );
 		
 		
 
