@@ -323,46 +323,42 @@ double *rhs_set ( int m, int n, double alpha ) {
     }
   }
 
-#pragma omp parallel shared(f)
-  {
-#pragma omp for private(i, x, y)
-      for (i = 0; i < m; i++)
-      {
-          j = 0;
-          y = (double)(2 * j - n + 1) / (double)(n - 1);
-          x = (double)(2 * i - m + 1) / (double)(m - 1);
-          f[i + j * m] = u_exact(x, y);
-      }
+    #pragma omp parallel for private(i, x, y) shared(f)
+    for ( i = 0; i < m; i++ )
+    {
+      j = 0;
+      y = ( double ) ( 2 * j - n + 1 ) / ( double ) ( n - 1 );
+      x = ( double ) ( 2 * i - m + 1 ) / ( double ) ( m - 1 );
+      f[i+j*m] = u_exact ( x, y );
+    }
 
-#pragma omp for private(i, x, y)
-      for (i = 0; i < m; i++)
-      {
-          j = n - 1;
-          y = (double)(2 * j - n + 1) / (double)(n - 1);
-          x = (double)(2 * i - m + 1) / (double)(m - 1);
-          f[i + j * m] = u_exact(x, y);
-      }
+    #pragma omp parallel for private(i, x, y) shared(f)
+    for ( i = 0; i < m; i++ )
+    {
+      j = n - 1;
+      y = ( double ) ( 2 * j - n + 1 ) / ( double ) ( n - 1 );
+      x = ( double ) ( 2 * i - m + 1 ) / ( double ) ( m - 1 );
+      f[i+j*m] = u_exact ( x, y );
+    }
 
-#pragma omp for private(i, x, y)
-      for (j = 0; j < n; j++)
-      {
-          i = 0;
-          x = (double)(2 * i - m + 1) / (double)(m - 1);
-          y = (double)(2 * j - n + 1) / (double)(n - 1);
-          f[i + j * m] = u_exact(x, y);
-      }
+    #pragma omp parallel for private(i, x, y) shared(f)
+    for ( j = 0; j < n; j++ )
+    {
+      i = 0;
+      x = ( double ) ( 2 * i - m + 1 ) / ( double ) ( m - 1 );
+      y = ( double ) ( 2 * j - n + 1 ) / ( double ) ( n - 1 );
+      f[i+j*m] = u_exact ( x, y );
+    }
 
 
-#pragma omp for private(i, x, y)
-      for (j = 0; j < n; j++)
-      {
-          i = m - 1;
-          x = (double)(2 * i - m + 1) / (double)(m - 1);
-          y = (double)(2 * j - n + 1) / (double)(n - 1);
-          f[i + j * m] = u_exact(x, y);
-      }
-  }
-    
+    #pragma omp parallel for private(i, x, y) shared(f)
+    for ( j = 0; j < n; j++ )
+    {
+      i = m - 1;
+      x = ( double ) ( 2 * i - m + 1 ) / ( double ) ( m - 1 );
+      y = ( double ) ( 2 * j - n + 1 ) / ( double ) ( n - 1 );
+      f[i+j*m] = u_exact ( x, y );
+    }
 
 
     #pragma omp parallel for private(i, j, x, y) shared(f, alpha)
