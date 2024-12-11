@@ -197,50 +197,29 @@ void Sobel() {
 	};
 	*/
 
-	static const int GxMask[3] = {-1, 0, 1};
+	static const int GxMask[3] = {1, 0, 1};
 	static const int GyMask[3] = {-1, -2, -1};
+
+	int intermediate[N][M] = { 0 };
 	
 
 	//__m256i GxMask = _mm256_set_epi8(-1, 0, 1, -2, 0, 2, -1, 0, 1, -1, 0, 1, -2, 0, 2, -1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	//__m256i GyMask = _mm256_set_epi8(-1, -2, -1, 0, 0, 0, 1, 2, 1, -1, -2, -1, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
 
-	/*---------------------------- Determine edge directions and gradient strengths -------------------------------------------*/
+
+	//---------------------------- Determine edge directions and gradient strengths -------------------------------------------
 	for (row = 1; row < N - 1; row++) {
 		for (col = 1; col < M - 1; col++) {
 
 			Gx = 0;
 			Gy = 0;
 
-			Gx += filt[row - 1][col - 1] * GxMask[0][0];	// half of threse are the same so fix why perform  calculation twice
-			Gy += filt[row - 1][col - 1] * GyMask[0][0];
-
-			Gx += filt[row - 1][col] * GxMask[0][1];
-			Gy += filt[row - 1][col] * GyMask[0][1];
-
-			Gx += filt[row - 1][col + 1] * GxMask[0][2];
-			Gy += filt[row - 1][col + 1] * GyMask[0][2];
-
-
-			Gx += filt[row][col - 1] * GxMask[1][0];
-			Gy += filt[row][col - 1] * GyMask[1][0];
-
-			Gx += filt[row][col] * GxMask[1][1];
-			Gy += filt[row][col] * GyMask[1][1];
-
-			Gx += filt[row][col + 1] * GxMask[1][2];
-			Gy += filt[row][col + 1] * GyMask[1][2];
-
-
-			Gx += filt[row + 1][col - 1] * GxMask[2][0];
-			Gy += filt[row + 1][col - 1] * GyMask[2][0];
-
-			Gx += filt[row + 1][col] * GxMask[2][1];
-			Gy += filt[row + 1][col] * GyMask[2][1];
-
-			Gx += filt[row + 1][col + 1] * GxMask[2][2];
-			Gy += filt[row + 1][col + 1] * GyMask[2][2];
-
+			// Apply horizontal Sobel filter (row-wise convolution)
+			for (int offset = -1; offset <= 1; offset++) {
+				Gx += filt[row][col + offset] * GxMask[offset + 1];
+				Gy += filt[row + offset][col] * GyMask[offset + 1];
+			}
 
 			gradient[row][col] = (unsigned char)(sqrt(Gx * Gx + Gy * Gy));
 
@@ -264,7 +243,7 @@ void Sobel() {
 			edgeDir[row][col] = newAngle;
 		}
 	}
-
+	
 }
 
 
