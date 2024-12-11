@@ -9,15 +9,13 @@ int main() {
 
 	int out, i, j;
 	   
-    benchmark(); // Remove
 
 	image_detection();
 
 
-
     
     compare();   // Remove
-
+    benchmark(); // Remove
 
 	system("pause");
 	return 0;
