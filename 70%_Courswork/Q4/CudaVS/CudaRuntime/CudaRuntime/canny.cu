@@ -130,9 +130,30 @@ void Sobel_Original() {
 
 }
 
+/*
+GX
+	[0] [1] [2]
+[0] -1  0   1
+[1] -2  0   2
+[2] -1  0   1
+
+GY
+	[0] [1] [2]
+[0] -1  -2  -1
+[1] 0   0   0
+[2] 1   2   1
+*/
+
+// Use separable filters - the (3x3) can be split into a horizonal (1x3) and a vertical (3x1) - Do horizontal then vertical
+// Dont recompute angles - precomute the atan2 values (computing for every pixel adds up)
+// Tile the image - memory access patterns
+// Approximations - Square root? ( |Gx| + |Gy| ) ~= ( Gx^2 + Gy^2 )^0.5
+// Parallelize outer loops row and col - each pixel is independant so go for it (OpenMP?)
+// AVX - Multiple pixels at a time
+// Declare masks - The masks are static never changing so make them before hand
 
 //#define sqr(Gx, Gy) ((abs(Gx) + abs(Gy)) / 2)
-#define sqrted(Gx, Gy) ((Gx*Gx + Gy*Gy)^)
+//#define sqrted(Gx, Gy) ((Gx*Gx + Gy*Gy)^0.5)
 
 // pixels are 8 bits ACX gives 32 per instruction
 
@@ -162,7 +183,7 @@ void Sobel() {
 	GyMask[2][0] = 1; GyMask[2][1] = 2; GyMask[2][2] = 1;
 	*/
 
-	
+	/*
 	static const int GxMask[3][3] = {
 	{-1, 0, 1},
 	{-2, 0, 2},
@@ -174,20 +195,11 @@ void Sobel() {
 		{0, 0, 0},
 		{1, 2, 1}
 	};
-	
-	/*
-	GX
-	   [0] [1] [2]
-	[0] -1  0   1
-	[1] -2  0   2
-	[2] -1  0   1
-	
-	GY
-	   [0] [1] [2]
-	[0] -1  -2  -1
-	[1] 0   0   0
-	[2] 1   2   1
 	*/
+
+	static const int GxMask[3] = {-1, 0, 1};
+	static const int GyMask[3] = {-1, -2, -1};
+	
 
 	//__m256i GxMask = _mm256_set_epi8(-1, 0, 1, -2, 0, 2, -1, 0, 1, -1, 0, 1, -2, 0, 2, -1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	//__m256i GyMask = _mm256_set_epi8(-1, -2, -1, 0, 0, 0, 1, 2, 1, -1, -2, -1, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -322,6 +334,7 @@ int image_detection() {
 			print[i][j] = filt[i][j];
 
 	write_image(OUT_NAME1, print);
+
 
 	Sobel();
 

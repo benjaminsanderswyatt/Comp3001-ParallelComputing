@@ -2,17 +2,22 @@
 #include "canny.h"
 void Sobel_Original();  // Remove
 void benchmark();   // Remove
+void compare();   // Remove
 
 
 int main() {
 
-    benchmark();
-
 	int out, i, j;
 	   
+    benchmark(); // Remove
+
 	image_detection();
 
+
+
     
+    compare();   // Remove
+
 
 	system("pause");
 	return 0;
@@ -24,6 +29,7 @@ int main() {
 #define TIMES 100 // Remove
 
 void benchmark() {  // Remove
+    printf("\nComparing speed to the orignal sobel\n");
 
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -49,4 +55,64 @@ void benchmark() {  // Remove
     auto finish_1 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_1 = finish_1 - start_1;
     std::cout << "\nOptimised Elapsed time: " << elapsed_1.count() << " s\n\n";
+}
+
+
+
+
+
+
+
+
+
+bool different(unsigned char **first_image, unsigned char **second_image) {
+    int i, j;
+    for (i = 0; i < N; i++) {
+        for (j = 0; j < M; j++) {
+            if (first_image[i][j] != second_image[i][j]) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void compare() {
+    printf("\nComparing result to the correct image\n");
+
+    int i, j;
+    unsigned char **out2_image, **correct_image;
+
+    // Allocate memory for images
+    out2_image = (unsigned char**)malloc(N * sizeof(unsigned char*));
+    correct_image = (unsigned char**)malloc(N * sizeof(unsigned char*));
+    for (i = 0; i < N; i++) {
+        out2_image[i] = (unsigned char*)malloc(M * sizeof(unsigned char));
+        correct_image[i] = (unsigned char*)malloc(M * sizeof(unsigned char));
+    }
+
+
+    // Read the two images
+    read_image("out2.pgm", out2_image);
+    read_image("Correct.pgm", correct_image);
+
+
+    // Are the images different
+    if (!different(out2_image, correct_image)) {
+        printf("\nCORRECT Sobel\n\n");
+    }
+    else {
+        printf("\nINCORRECT Soble\n\n");
+    }
+
+
+
+
+    // Free allocated memory
+    for (i = 0; i < N; i++) {
+        free(out2_image[i]);
+        free(correct_image[i]);
+    }
+    free(out2_image);
+    free(correct_image);
 }
