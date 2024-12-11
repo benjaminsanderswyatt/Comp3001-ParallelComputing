@@ -13,8 +13,8 @@
 
 
 float test[N*N], A[N*N], B[N*N], C[N*N];
-// __declspec(align(64)) 
-
+//__declspec(align(64))
+__device__ float A_d[N*N], B_d[N*N], C_d[N*N]; //allocate the device arrays statically (global GPU memory)
 
 
 unsigned short int compare(const float* C, const float* A, const float* B);
@@ -72,33 +72,6 @@ int main() {
 
 	init(); //initialize host arrays
 
-	float* C_d, * A_d, * B_d;
-
-	// create GPU arrays
-	cudaStatus = cudaMalloc((void**)&A_d, N * N * sizeof(float));
-	if (cudaStatus != cudaSuccess) {
-		printf("\nCudaMalloc failed");
-		cuda_error();
-		cudaFree(C_d); cudaFree(A_d);
-		return -1;
-	}
-
-	cudaStatus = cudaMalloc((void**)&B_d, N * N * sizeof(float));
-	if (cudaStatus != cudaSuccess) {
-		printf("\nCudaMalloc failed");
-		cuda_error();
-		cudaFree(C_d); cudaFree(A_d); cudaFree(B_d);
-		return -1;
-	}
-
-	cudaStatus = cudaMalloc((void**)&C_d, N * N * sizeof(float));
-	if (cudaStatus != cudaSuccess) {
-		printf("\nCudaMalloc failed");
-		cuda_error();
-		cudaFree(C_d);
-		return -1;
-	}
-
 
 	dim3 dimBlock(16, 16, 1);
 	dim3 dimGrid(N / 16, N / 16, 1);
@@ -109,18 +82,17 @@ int main() {
 
 
 	// copy arrays from host to device
-	cudaStatus = cudaMemcpy(A_d, A, N * N * sizeof(float), cudaMemcpyHostToDevice); //copy array from host to GPU
+	cudaStatus = cudaMemcpyToSymbol(A_d, A, N * N * sizeof(float));
 	if (cudaStatus != cudaSuccess) {
 		printf("\nA cuda copy failed");
-		cudaFree(C_d); cudaFree(A_d); cudaFree(B_d);
+		cuda_error();
 		return -1;
 	}
 
-	cudaStatus = cudaMemcpy(B_d, B, N * N * sizeof(float), cudaMemcpyHostToDevice); //copy array from host to GPU
+	cudaStatus = cudaMemcpyToSymbol(B_d, B, N * N * sizeof(float));
 	if (cudaStatus != cudaSuccess) {
-		cudaFree(C_d); cudaFree(A_d); cudaFree(B_d);
-		cuda_error();
 		printf("\nB cuda copy failed");
+		cuda_error();
 		return -1;
 	}
 
@@ -130,15 +102,13 @@ int main() {
 
 	}
 
-
-	cudaStatus = cudaMemcpy(C, C_d, N * N * sizeof(float), cudaMemcpyDeviceToHost); //copy array from GPU back to CPU
+	/* Copy back the result from the DEVICE memory to the HOST memory */
+	cudaStatus = cudaMemcpyFromSymbol(C, C_d, N * N * sizeof(float));
 	if (cudaStatus != cudaSuccess) {
 		printf("\nC cuda copy failed");
 		cuda_error();
-		cudaFree(C_d); cudaFree(A_d); cudaFree(B_d);
 		return -1;
 	}
-
 
 	cudaEventRecord(stop, 0);  //get timer value
 	cudaEventSynchronize(stop);
