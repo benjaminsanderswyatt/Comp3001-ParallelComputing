@@ -1,1 +1,3 @@
 g++ Helmholtz.c -o exec -O2 -fopenmp -lm -fopt-info-vec-optimized
+
+g++ q1.c -o exec -O2 -fopenmp -lm -fopt-info-vec-optimized

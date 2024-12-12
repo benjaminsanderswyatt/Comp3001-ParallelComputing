@@ -157,7 +157,7 @@ GY
 
 // pixels are 8 bits ACX gives 32 per instruction
 
-void Sobel_seperable() {
+void Sobel() {
 
 
 	int i, j;
@@ -373,115 +373,6 @@ void Sobel_seperable() {
 }
 
 
-void Sobel() {
-	unsigned int    row, col;
-
-
-	static const int GxMask[3][3] = {
-	{-1, 0, 1},
-	{-2, 0, 2},
-	{-1, 0, 1}
-	};
-
-	static const int GyMask[3][3] = {
-		{-1, -2, -1},
-		{0, 0, 0},
-		{1, 2, 1}
-	};
-
-	// Apply Horizontal (Gy) kernel (edge detection for horizontal edges)
-	for (int i = 1; i < N - 1; ++i) {
-		for (int j = 1; j < M - 1; j++) {
-			// Initialize the accumulator for the horizontal kernel
-			__m256i gy = _mm256_setzero_si256();
-
-			// Loop over the 3x3 kernel region (horizontal convolution)
-			for (int di = -1; di <= 1; ++di) {
-				for (int dj = -1; dj <= 1; ++dj) {
-					int pixel_val = image[i + di][j + dj];
-					gy = _mm256_adds_epu8(gy, _mm256_set1_epi8(GyMask[di + 1][dj + 1] * pixel_val));
-				}
-			}
-
-			// Store the final result (just for the horizontal convolution)
-			output[i][j] = _mm256_extract_epi8(gy, 0);  // Extract the result
-		}
-	}
-
-	// Apply Vertical (Gx) kernel (edge detection for vertical edges)
-	for (int i = 1; i < N - 1; ++i) {
-		for (int j = 1; j < M - 1; j++) {
-			// Initialize the accumulator for the vertical kernel
-			__m256i gx = _mm256_setzero_si256();
-
-			// Loop over the 3x3 kernel region (vertical convolution)
-			for (int di = -1; di <= 1; ++di) {
-				for (int dj = -1; dj <= 1; ++dj) {
-					int pixel_val = image[i + di][j + dj];
-					gx = _mm256_adds_epu8(gx, _mm256_set1_epi8(GxMask[di + 1][dj + 1] * pixel_val));
-				}
-			}
-
-			// Store the final result (just for the vertical convolution)
-			output[i][j] = _mm256_extract_epi8(gx, 0);  // Extract the result
-		}
-	}
-
-
-
-
-
-}
-
-void Sobel_Optimized() {
-	int i, j;
-	unsigned int row, col;
-	int Gx, Gy;
-
-	// AVX registers for masks
-	__m256i GxMask = _mm256_set_epi8(
-		-1, 0, 1, -2, 0, 2, -1, 0, 1,
-		-1, 0, 1, -2, 0, 2, -1, 0, 1,
-		-1, 0, 1, -2, 0, 2, -1, 0, 1,
-		-1, 0, 1, -2, 0, 2);
-
-	__m256i GyMask = _mm256_set_epi8(
-		-1, -2, -1, 0, 0, 0, 1, 2, 1,
-		-1, -2, -1, 0, 0, 0, 1, 2, 1,
-		-1, -2, -1, 0, 0, 0, 1, 2, 1,
-		-1, -2, -1, 0, 0, 0, 1, 2);
-
-	for (row = 1; row < N - 1; row++) {
-		for (col = 1; col < M - 1; col += 16) { // Process 16 pixels at a time
-
-			// Load 3 rows of 16 pixels each
-			__m256i row1 = _mm256_loadu_si256((__m256i*) & filt[row - 1][col - 1]);
-			__m256i row2 = _mm256_loadu_si256((__m256i*) & filt[row][col - 1]);
-			__m256i row3 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col - 1]);
-
-			// Compute Gx and Gy
-			__m256i Gx = _mm256_setzero_si256();
-			__m256i Gy = _mm256_setzero_si256();
-
-			Gx = _mm256_add_epi16(Gx, _mm256_maddubs_epi16(row1, GxMask));
-			Gx = _mm256_add_epi16(Gx, _mm256_maddubs_epi16(row2, GxMask));
-			Gx = _mm256_add_epi16(Gx, _mm256_maddubs_epi16(row3, GxMask));
-
-			Gy = _mm256_add_epi16(Gy, _mm256_maddubs_epi16(row1, GyMask));
-			Gy = _mm256_add_epi16(Gy, _mm256_maddubs_epi16(row2, GyMask));
-			Gy = _mm256_add_epi16(Gy, _mm256_maddubs_epi16(row3, GyMask));
-
-			// Compute gradient magnitude
-			__m256i gradient = _mm256_hadd_epi16(_mm256_mullo_epi16(Gx, Gx), _mm256_mullo_epi16(Gy, Gy));
-
-			// Store results back
-			_mm256_storeu_si256((__m256i*) & gradient[row][col], gradient);
-
-			// Optional: approximate direction calculations for edgeDir
-			// Skip if only gradient magnitude is needed.
-		}
-	}
-}
 
 
 
@@ -551,9 +442,8 @@ int image_detection() {
 
 
 	Sobel();
-	//Sobel_seperable();
 	//Sobel_Original();
-	//Sobel_Optimized();
+
 
 
 	/* write gradient to image*/
