@@ -15,10 +15,12 @@
 #include <omp.h>
 
 
-#define N 256 //input size
+#define N 64 //input size
+#define TIMES 20 //times to run
+#define ARITHMETICAL_OPS N*N*N*N*2
 
 
-__declspec(align(32)) float test[N][N][N], sum[N][N][N], A[N][N][N], C[N][N]; 
+__declspec(align(64)) float test[N][N][N], sum[N][N][N], A[N][N][N], C[N][N]; 
 
 __device__ float device_sum[N][N][N], device_A[N][N][N], device_C[N][N]; //allocate the device arrays statically (global GPU memory)
 
@@ -133,9 +135,9 @@ __global__ void diotgen_ver1() {
 	__shared__ float shared_C_0[TILE][TILE];
 	__shared__ float shared_C_1[TILE][TILE];
 
-	int x = blockIdx.x * TILE + threadIdx.x;
-	int y = blockIdx.y * TILE + threadIdx.y;
-	int z = blockIdx.z * TILE + threadIdx.z;
+	int x = blockIdx.x * TILE*2 + threadIdx.x;
+	int y = blockIdx.y * TILE*2 + threadIdx.y;
+	int z = blockIdx.z * TILE*2 + threadIdx.z;
 
 
 	float tempSum_0 = 0.0f;
@@ -199,34 +201,55 @@ int main()
 	init(); //initialize host arrays
 
 
-	/* Copy the A array from the HOST memory to the DEVICE memory */
-	cudaStatus = cudaMemcpyToSymbol(device_A, A, N * N *N * sizeof(float));
-	if (cudaStatus != cudaSuccess) {
-		printf("\ncudaMemcpy failed!");
-		return -1;
-	}
 
-	/* Copy the C array from the HOST memory to the DEVICE memory */
-	cudaStatus = cudaMemcpyToSymbol(device_C, C, N * N * sizeof(float));
-	if (cudaStatus != cudaSuccess) {
-		printf("\ncudaMemcpy failed!");
-		return -1;
-	}
 	
+
+	//dim3 dimBlock(16,16 ,4 );
+	//dim3 dimGrid((N + 15) / 16, (N + 15) / 16, (N + 3) / 4);
+
+	dim3 dimBlock(8, 8, 8);
+	dim3 dimGrid((N + 7) / 8, (N + 7) / 8, (N + 7) / 8);
+
+
+
 	cudaEventRecord(start, 0); //get timer value
 
+	for (int i = 0; i < TIMES; i++) {
+		/* Copy the A array from the HOST memory to the DEVICE memory */
+		cudaStatus = cudaMemcpyToSymbol(device_A, A, N * N * N * sizeof(float));
+		if (cudaStatus != cudaSuccess) {
+			printf("\ncudaMemcpy failed!");
+			return -1;
+		}
 
-		//dim3 dimBlock(16,16 ,4 );
-		//dim3 dimGrid((N + 15) / 16, (N + 15) / 16, (N + 3) / 4);
+		/* Copy the C array from the HOST memory to the DEVICE memory */
+		cudaStatus = cudaMemcpyToSymbol(device_C, C, N * N * sizeof(float));
+		if (cudaStatus != cudaSuccess) {
+			printf("\ncudaMemcpy failed!");
+			return -1;
+		}
 
-		dim3 dimBlock(8,8 ,8 );
-		dim3 dimGrid((N + 7) / 8, (N + 7) / 8, (N +7) / 8);
 
-		//diotgen_ver1 << <dimGrid, dimBlock >> > ( );
+		diotgen_ver1 << <dimGrid, dimBlock >> > ( );
 		//diotgen_tile_it << <dimGrid, dimBlock >> > ( );
-		diotgen_3d_tile_it << <dimGrid, dimBlock >> > ( );
-		
-		
+		//diotgen_3d_tile_it << <dimGrid, dimBlock >> > ();
+		//diotgen_cuda_ise << <dimGrid, dimBlock >> > ();
+
+
+		/* Copy back the result from the DEVICE memory to the HOST memory */
+		cudaStatus = cudaMemcpyFromSymbol(sum, device_sum, N * N * N * sizeof(float));
+		if (cudaStatus != cudaSuccess) {
+			printf("\nS cudaMemcpy failed!");
+
+
+			cudaError_t error = cudaGetLastError();
+			if (error != cudaSuccess) {
+				printf("Error: %s\n", cudaGetErrorString(error));
+			}
+
+			return -1;
+		}
+	}
 
 	cudaEventRecord(stop, 0);  //get timer value
 	cudaEventSynchronize(stop);
@@ -235,19 +258,11 @@ int main()
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
 
-	/* Copy back the result from the DEVICE memory to the HOST memory */
-	cudaStatus = cudaMemcpyFromSymbol(sum, device_sum, N * N * N * sizeof(float));
-	if (cudaStatus != cudaSuccess) {
-		printf("\nS cudaMemcpy failed!");
+
+	double flops = (double)((double)2 * N * N * N * N) / (elapsed_time / TIMES);
+	printf("\nGflops achieved %f ", flops / 1000000);
 
 
-		cudaError_t error = cudaGetLastError();
-		if (error != cudaSuccess) {
-			printf("Error: %s\n", cudaGetErrorString(error));
-		}
-
-		return -1;
-	}
 
 	//do not forget to print the flops value achieved
 

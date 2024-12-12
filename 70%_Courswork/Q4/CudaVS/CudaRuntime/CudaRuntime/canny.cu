@@ -211,8 +211,8 @@ void Sobel() {
 	static const int GyCol[3] = { -1, 0, 1 };  // Vertical filter for Gy
 
 	// Dynamically allocate memory for GxTemp and GyTemp
-	int *GxTemp = (int*)malloc(N * M * sizeof(int)); // [row][col] -> [row * M + col]
-	int *GyTemp = (int*)malloc(N * M * sizeof(int));
+	int* GxTemp = (int*)malloc(N * M * sizeof(int)); // [row][col] -> [row * M + col]
+	int* GyTemp = (int*)malloc(N * M * sizeof(int));
 
 	// Rows init 0
 	for (int i = 0; i < M; i++) {
@@ -237,7 +237,7 @@ void Sobel() {
 	//---------------------------- Row convolution -------------------------------------------
 	for (row = 1; row < N - 1; row++) {
 		for (col = 1; col < M - 1; col++) {
-			
+
 			// Gx { -1, 0, 1 }
 			// Gy { 1, 2, 1 }
 
@@ -270,14 +270,14 @@ void Sobel() {
 
 			GxTemp[row * M + col] = Gx;
 			GyTemp[row * M + col] = Gy;
-			
+
 		}
 	}
 
 	//---------------------------- Column convolution + Angles -------------------------------------------
 	for (row = 1; row < N - 1; row++) {
 		for (col = 1; col < M - 1; col++) {
-			
+
 			// Gx { 1, 2, 1 }
 			// Gy { -1, 0, 1 }
 
@@ -295,14 +295,14 @@ void Sobel() {
 			Gy += GyTemp[row][col + 1] * GyCol[2];
 			*/
 
-			Gx += GxTemp[row* M + col - 1];
-			Gy += GyTemp[row* M + col - 1] * -1;
+			Gx += GxTemp[row * M + col - 1];
+			Gy += GyTemp[row * M + col - 1] * -1;
 
-			Gx += GxTemp[row* M +col] * 2;
+			Gx += GxTemp[row * M + col] * 2;
 			// Gy += GyTemp[row][col] * GyCol[1]; // Multiplying by 0
 
-			Gx += GxTemp[row * M +col + 1];
-			Gy += GyTemp[row*M +col + 1];
+			Gx += GxTemp[row * M + col + 1];
+			Gy += GyTemp[row * M + col + 1];
 
 
 
@@ -442,6 +442,7 @@ int image_detection() {
 
 
 	Sobel();
+	//Sobel_Original();
 
 
 
