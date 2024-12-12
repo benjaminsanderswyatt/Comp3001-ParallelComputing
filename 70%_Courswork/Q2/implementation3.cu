@@ -5,28 +5,28 @@
 #include <stdio.h>
 #include <math.h>
 
-#define N 16  //arrays input size
-#define TIMES 1 //times to run
+#define N 64  //arrays input size
+#define TIMES 20 //times to run
 #define ARITHMETICAL_OPS N*N*N*2
 
 #define EPSILON 0.00001
 
 
-__declspec(align(32)) float test[N*N], A[N*N], B[N*N], C[N*N];
+__declspec(align(64)) float test[N*N], A[N*N], B[N*N], C[N*N];
 
-__device__ float device_A[N * N], device_B[N * N], device_C[N * N];
+
 
 
 unsigned short int compare(const float* C, const float* A, const float* B);
 unsigned short int equal(float const x, float const y);
 
-void init(float* C, float *A, float *B); // Init
+void init(); // Init
+
+void cuda_error();
 
 
 // --------------------------------------- implementation #3 ---------------------------------------
 __global__ void implementation_3(float* C, float* A, float* B) {
-
-	printf("\nHello from thread %d of block %d", threadIdx.x, blockIdx.x);
 
 	float tmp = 0.0;
 
@@ -68,34 +68,74 @@ int main() {
 	cudaGetDeviceProperties(&prop, devId);
 	printf("\n Device: %s \n", prop.name);
 
-	init(C, A, B); //initialize host arrays
+	init(); //initialize host arrays
 
+	float* C_d, * A_d, * B_d;
 
-	/* Copy the A array from the HOST memory to the DEVICE memory */
-	cudaStatus = cudaMemcpyToSymbol(device_A, A, N * N * sizeof(float));
+	// create GPU arrays
+	cudaStatus = cudaMalloc((void**)&A_d, N * N * sizeof(float));
 	if (cudaStatus != cudaSuccess) {
-		printf("\ncudaMemcpy failed!");
+		printf("\nCudaMalloc failed");
+		cuda_error();
+		cudaFree(C_d);
 		return -1;
 	}
 
-	/* Copy the B array from the HOST memory to the DEVICE memory */
-	cudaStatus = cudaMemcpyToSymbol(device_B, B, N * N * sizeof(float));
+	cudaStatus = cudaMalloc((void**)&B_d, N * N * sizeof(float));
 	if (cudaStatus != cudaSuccess) {
-		printf("\ncudaMemcpy failed!");
+		printf("\nCudaMalloc failed");
+		cuda_error();
+		cudaFree(C_d); cudaFree(A_d);
 		return -1;
 	}
 
+	cudaStatus = cudaMalloc((void**)&C_d, N * N * sizeof(float));
+	if (cudaStatus != cudaSuccess) {
+		printf("\nCudaMalloc failed");
+		cuda_error();
+		cudaFree(C_d); cudaFree(A_d); cudaFree(B_d);
+		return -1;
+	}
 
 
 	dim3 dimBlock(16, 16, 1);
 	dim3 dimGrid(N / 16, N / 16, 1);
 
 
+
 	cudaEventRecord(start, 0); //get timer value
-
 	for (int i = 0; i < TIMES; i++) {
-		implementation_3 <<<dimGrid, dimBlock>>> (C,A,B);
 
+		// copy arrays from host to device
+		cudaStatus = cudaMemcpy(A_d, A, N * N * sizeof(float), cudaMemcpyHostToDevice); //copy array from host to GPU
+		if (cudaStatus != cudaSuccess) {
+			printf("\nA cuda copy failed");
+			cudaFree(C_d); cudaFree(A_d); cudaFree(B_d);
+			return -1;
+		}
+
+		cudaStatus = cudaMemcpy(B_d, B, N * N * sizeof(float), cudaMemcpyHostToDevice); //copy array from host to GPU
+		if (cudaStatus != cudaSuccess) {
+			cudaFree(C_d); cudaFree(A_d); cudaFree(B_d);
+			cuda_error();
+			printf("\nB cuda copy failed");
+			return -1;
+		}
+
+
+	
+		implementation_3 <<<dimGrid, dimBlock>>> (C_d,A_d,B_d);
+
+	
+
+
+		cudaStatus = cudaMemcpy(C, C_d, N * N * sizeof(float), cudaMemcpyDeviceToHost); //copy array from GPU back to CPU
+		if (cudaStatus != cudaSuccess) {
+			printf("\nC cuda copy failed");
+			cuda_error();
+			cudaFree(C_d); cudaFree(A_d); cudaFree(B_d);
+			return -1;
+		}
 	}
 
 	cudaEventRecord(stop, 0);  //get timer value
@@ -105,22 +145,11 @@ int main() {
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
 
-	/* Copy back the result from the DEVICE memory to the HOST memory */
-	cudaStatus = cudaMemcpyFromSymbol(C, device_C, N * N * sizeof(float));
-	if (cudaStatus != cudaSuccess) {
-		printf("\ncudaMemcpy failed!");
-		return -1;
-	}
 
-	//do not forget to print the flops value achieved
+	double flops = (double)((double)2 * N * N * N) / (elapsed_time / TIMES);
+	printf("\nGflops achieved %f ", flops / 1000000);
 
-	/*  Handling function of the CUDA runtime application programming interface.
-	*   Returns the last error from a runtime call.
-	*/
-	cudaError_t error = cudaGetLastError();
-	if (error != cudaSuccess) {
-		printf("Error: %s\n", cudaGetErrorString(error));
-	}
+	cuda_error();
 
 	if (compare(C,A,B) == 0)
 		printf("\nResult is ok\n");
@@ -138,8 +167,18 @@ int main() {
 	return 0;
 }
 
+// CUDA error
+void cuda_error() {
+	cudaError_t error = cudaGetLastError();
+	if (error != cudaSuccess) {
+		printf("\nError: %s\n", cudaGetErrorString(error));
+	}
+}
+
+
+
 // Init
-void init(float *C, float *A, float *B) {
+void init() {
 
 	int i;
 

@@ -5,15 +5,15 @@
 #include <stdio.h>
 #include <math.h>
 
-#define N 16  //arrays input size
+#define N 64  //arrays input size
 #define TIMES 1 //times to run
-#define TILE 1
-#define ARITHMETICAL_OPS N*N*N*2
+#define TILE 16
+#define ARITHMETICAL_OPS N*N*N*2 // Might be wrong as array size N*N???
 
 #define EPSILON 0.00001
 
 
-__declspec(align(32)) float test[N*N], A[N*N], B[N*N], C[N*N];
+__declspec(align(64)) float test[N*N], A[N*N], B[N*N], C[N*N];
 
 
 
@@ -113,42 +113,52 @@ int main() {
 		return -1;
 	}
 
+	cudaStatus = cudaMalloc((void**)&C_d, N * N * sizeof(float));
+	if (cudaStatus != cudaSuccess) {
+		printf("\nCudaMalloc failed");
+		cuda_error();
+		cudaFree(C_d);
+		return -1;
+	}
+
 
 	cudaEventRecord(start, 0); //get timer value
 
-	// copy arrays from host to device
-	cudaStatus = cudaMemcpy(A_d, A, N * N * sizeof(float), cudaMemcpyHostToDevice); //copy array from host to GPU
-	if (cudaStatus != cudaSuccess) {
-		printf("\ncuda copy failed");
-		cuda_error();
-		cudaFree(C_d); cudaFree(A_d); cudaFree(B_d);
-		return -1;
-	}
-
-	cudaStatus = cudaMemcpy(B_d, B, N * N * sizeof(float), cudaMemcpyHostToDevice); //copy array from host to GPU
-	if (cudaStatus != cudaSuccess) {
-		cudaFree(C_d); cudaFree(A_d); cudaFree(B_d);
-		cuda_error();
-		printf("\ncuda copy failed");
-		return -1;
-	}
-
-
 	for (int i = 0; i < TIMES; i++) {
-		mmm_tiled <<<dimGrid, dimBlock>>> (C,A,B);
+
+		// copy arrays from host to device
+		cudaStatus = cudaMemcpy(A_d, A, N * N * sizeof(float), cudaMemcpyHostToDevice); //copy array from host to GPU
+		if (cudaStatus != cudaSuccess) {
+			printf("\ncuda copy failed");
+			cuda_error();
+			cudaFree(C_d); cudaFree(A_d); cudaFree(B_d);
+			return -1;
+		}
+
+		cudaStatus = cudaMemcpy(B_d, B, N * N * sizeof(float), cudaMemcpyHostToDevice); //copy array from host to GPU
+		if (cudaStatus != cudaSuccess) {
+			cudaFree(C_d); cudaFree(A_d); cudaFree(B_d);
+			cuda_error();
+			printf("\ncuda copy failed");
+			return -1;
+		}
+
+
+
+		mmm_tiled << <dimGrid, dimBlock >> > (C_d, A_d, B_d);
+
+
+
+
+		cudaStatus = cudaMemcpy(C, C_d, N * N * sizeof(float), cudaMemcpyDeviceToHost); //copy array from GPU back to CPU
+		if (cudaStatus != cudaSuccess) {
+			printf("\ncuda copy failed");
+			cuda_error();
+			cudaFree(C_d); cudaFree(A_d); cudaFree(B_d);
+			return -1;
+		}
 
 	}
-
-
-	cudaStatus = cudaMemcpy(C, C_d, N * N * sizeof(float), cudaMemcpyDeviceToHost); //copy array from GPU back to CPU
-	if (cudaStatus != cudaSuccess) {
-		printf("\ncuda copy failed");
-		cuda_error();
-		cudaFree(C_d); cudaFree(A_d); cudaFree(B_d);
-		return -1;
-	}
-
-
 
 
 	cudaEventRecord(stop, 0);  //get timer value
