@@ -186,6 +186,32 @@ void Sobel_seperable() {
 	};
 	*/
 
+	/*
+	Gx += filt[row - 1][col - 1] * GxMask[0][0];
+	Gx += filt[row - 1][col    ] * GxMask[0][1];
+	Gx += filt[row - 1][col + 1] * GxMask[0][2];
+
+	Gx += filt[row][col - 1] * GxMask[1][0];
+	Gx += filt[row][col] * GxMask[1][1];
+	Gx += filt[row][col + 1] * GxMask[1][2];
+
+	Gx += filt[row + 1][col - 1] * GxMask[2][0];
+	Gx += filt[row + 1][col] * GxMask[2][1];
+	Gx += filt[row + 1][col + 1] * GxMask[2][2];
+
+	Gy += filt[row - 1][col - 1] * GyMask[0][0];
+	Gy += filt[row - 1][col] * GyMask[0][1];
+	Gy += filt[row - 1][col + 1] * GyMask[0][2];
+
+	Gy += filt[row][col - 1] * GyMask[1][0];
+	Gy += filt[row][col] * GyMask[1][1];
+	Gy += filt[row][col + 1] * GyMask[1][2];
+
+	Gy += filt[row + 1][col - 1] * GyMask[2][0];
+	Gy += filt[row + 1][col] * GyMask[2][1];
+	Gy += filt[row + 1][col + 1] * GyMask[2][2];
+	*/
+
 	//__m256i GxMask = _mm256_set_epi8(-1, 0, 1, -2, 0, 2, -1, 0, 1, -1, 0, 1, -2, 0, 2, -1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	//__m256i GyMask = _mm256_set_epi8(-1, -2, -1, 0, 0, 0, 1, 2, 1, -1, -2, -1, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
@@ -377,53 +403,90 @@ void Sobel() {
 	unsigned int    row, col;
 
 
-	static const int GxMask[3][3] = {
-	{-1, 0, 1},
-	{-2, 0, 2},
-	{-1, 0, 1}
-	};
 
-	static const int GyMask[3][3] = {
-		{-1, -2, -1},
-		{0, 0, 0},
-		{1, 2, 1}
-	};
 
-	// Apply Horizontal (Gy) kernel (edge detection for horizontal edges)
-	for (int i = 1; i < N - 1; ++i) {
-		for (int j = 1; j < M - 1; j++) {
-			// Initialize the accumulator for the horizontal kernel
-			__m256i gy = _mm256_setzero_si256();
+	
+	for (row = 1; row < N - 1; row++) {
+		for (col = 1; col < M - 1; col+=16) { // += num of elements in vector
 
-			// Loop over the 3x3 kernel region (horizontal convolution)
-			for (int di = -1; di <= 1; ++di) {
-				for (int dj = -1; dj <= 1; ++dj) {
-					int pixel_val = image[i + di][j + dj];
-					gy = _mm256_adds_epu8(gy, _mm256_set1_epi8(GyMask[di + 1][dj + 1] * pixel_val));
-				}
-			}
+			//load 3 rows from image
+			__m256i row1 = _mm256_loadu_si256((__m256i*) & filt[row - 1][col]);
+			__m256i row2 = _mm256_loadu_si256((__m256i*) & filt[row][col]);
+			__m256i row3 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col]);
 
-			// Store the final result (just for the horizontal convolution)
-			output[i][j] = _mm256_extract_epi8(gy, 0);  // Extract the result
-		}
-	}
 
-	// Apply Vertical (Gx) kernel (edge detection for vertical edges)
-	for (int i = 1; i < N - 1; ++i) {
-		for (int j = 1; j < M - 1; j++) {
-			// Initialize the accumulator for the vertical kernel
-			__m256i gx = _mm256_setzero_si256();
+			//GX
+			
+			// Horizontal kernal [-1,0,1]
+			__m256i hk_neg1 = _mm256_set1_epi8(-1); // can be static (move outside)
+			__m256i hk_0 = _mm256_set1_epi8(0);
+			__m256i hk_1 = _mm256_set1_epi8(1);
 
-			// Loop over the 3x3 kernel region (vertical convolution)
-			for (int di = -1; di <= 1; ++di) {
-				for (int dj = -1; dj <= 1; ++dj) {
-					int pixel_val = image[i + di][j + dj];
-					gx = _mm256_adds_epu8(gx, _mm256_set1_epi8(GxMask[di + 1][dj + 1] * pixel_val));
-				}
-			}
 
-			// Store the final result (just for the vertical convolution)
-			output[i][j] = _mm256_extract_epi8(gx, 0);  // Extract the result
+			__m256i result_row1 = _mm256_maddubs_epi16(row1, hk_neg1); // returns 16 bit signed int
+			__m256i result_row2 = _mm256_maddubs_epi16(row2, hk_0);
+			__m256i result_row3 = _mm256_maddubs_epi16(row3, hk_1);
+
+			__m256i horizontal_sum_x = _mm256_add_epi16(result_row1, result_row2);
+			horizontal_sum_x = _mm256_add_epi16(horizontal_sum_x, result_row3); // 16 bit signed
+
+			// Vertical kernal [1,2,1]'
+			__m256i vk_1 = _mm256_set1_epi8(1); // can be static (move outside)
+			__m256i vk_2 = _mm256_set1_epi8(2);
+
+			__m256i result_row1_x = _mm256_maddubs_epi16(result_row1, vk_1);
+			__m256i result_row2_x = _mm256_maddubs_epi16(result_row2, vk_2);
+			__m256i result_row3_x = _mm256_maddubs_epi16(result_row3, vk_1);
+
+			__m256i vertical_sum_x = _mm256_add_epi16(result_row1_x, result_row2_x);
+			vertical_sum_x = _mm256_add_epi16(vertical_sum_x, result_row3_x);
+
+
+
+			//GY
+			
+			// Horizontal kernal [1,2,1]
+			__m256i y_hk_1 = _mm256_set1_epi8(1);
+			__m256i y_hk_2 = _mm256_set1_epi8(2);
+
+			__m256i result_row1_y = _mm256_maddubs_epi16(row1, y_hk_1);
+			__m256i result_row2_y = _mm256_maddubs_epi16(row2, y_hk_2);
+			__m256i result_row3_y = _mm256_maddubs_epi16(row3, y_hk_1);
+
+			__m256i horizontal_sum_y = _mm256_add_epi16(result_row1_y, result_row2_y);
+			horizontal_sum_y = _mm256_add_epi16(horizontal_sum_y, result_row3_y);
+
+			// Vertical kernal [-1,0,1]'
+			__m256i y_vk_neg1 = _mm256_set1_epi16(-1);
+			__m256i y_vk_0 = _mm256_set1_epi16(0);
+			__m256i y_vk_1 = _mm256_set1_epi16(1);
+
+			__m256i vertical_sum_y = _mm256_add_epi16(_mm256_maddubs_epi16(result_row1_y, y_vk_neg1), _mm256_maddubs_epi16(result_row2_y, y_vk_0));
+
+			vertical_sum_y = _mm256_add_epi16(vertical_sum_y, _mm256_maddubs_epi16(result_row3_y, y_vk_1));
+
+
+
+
+			
+			// Compute Approximate Gradient Magnitude (L1 Norm)
+			// Square Gx and Gy
+			__m256i gx_squared = _mm256_mullo_epi16(vertical_sum_x, vertical_sum_x);
+			__m256i gy_squared = _mm256_mullo_epi16(vertical_sum_y, vertical_sum_y);
+
+			// Sum Gx^2 + Gy^2
+			__m256i sum_squares = _mm256_add_epi16(gx_squared, gy_squared);
+
+			// Convert to float for sqrt calculation
+			__m256 ps_squares = _mm256_cvtepi32_ps(sum_squares);
+
+			// Compute sqrt
+			__m256 magnitude = _mm256_sqrt_ps(ps_squares);
+
+			// Convert to unsigned char and store
+			__m256i gradient_result = _mm256_cvtps_epi32(magnitude);
+			_mm256_storeu_si256((__m256i*)&gradient[row][col], gradient_result);
+			
 		}
 	}
 
@@ -438,6 +501,7 @@ void Sobel_Optimized() {
 	unsigned int row, col;
 	int Gx, Gy;
 
+	/*
 	// AVX registers for masks
 	__m256i GxMask = _mm256_set_epi8(
 		-1, 0, 1, -2, 0, 2, -1, 0, 1,
@@ -450,6 +514,7 @@ void Sobel_Optimized() {
 		-1, -2, -1, 0, 0, 0, 1, 2, 1,
 		-1, -2, -1, 0, 0, 0, 1, 2, 1,
 		-1, -2, -1, 0, 0, 0, 1, 2);
+
 
 	for (row = 1; row < N - 1; row++) {
 		for (col = 1; col < M - 1; col += 16) { // Process 16 pixels at a time
@@ -481,6 +546,8 @@ void Sobel_Optimized() {
 			// Skip if only gradient magnitude is needed.
 		}
 	}
+
+	*/
 }
 
 
