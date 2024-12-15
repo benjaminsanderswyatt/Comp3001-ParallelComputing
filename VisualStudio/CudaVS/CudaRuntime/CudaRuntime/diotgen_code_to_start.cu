@@ -15,8 +15,7 @@
 #include <omp.h>
 
 
-#define N 128 //input size
-#define TIMES 1000 //times to run
+#define N 256 //input size
 #define ARITHMETICAL_OPS N*N*N*N*2
 
 
@@ -36,42 +35,109 @@ inline unsigned short int equal(float const a, float const b);
 #define MAX_NUMBER_OF_BLOCKS_PER_DIM 65535 //max number of blocks that our GPU can handle (for one dimension only)
 
 #define TILE 8
+#define TILE_x2 TILE*2
 
+__global__ void diotgen_ver1_optimised() {
+	__shared__ float shared_A_0[TILE][TILE][TILE];
+	__shared__ float shared_C_0[TILE][TILE];
 
-__global__ void diotgen_ver1() {
+	__shared__ float shared_A_1[TILE][TILE][TILE];
+	__shared__ float shared_C_1[TILE][TILE];
 
-	__shared__ float shared_A[TILE][TILE][TILE];
-	__shared__ float shared_C[TILE][TILE];
+	__shared__ float shared_A_next_0[TILE][TILE][TILE];
+	__shared__ float shared_C_next_0[TILE][TILE];
 
-	int x = blockIdx.x * TILE + threadIdx.x;
-	int y = blockIdx.y * TILE + threadIdx.y;
+	__shared__ float shared_A_next_1[TILE][TILE][TILE];
+	__shared__ float shared_C_next_1[TILE][TILE];
+
+	int x = blockIdx.x * TILE_x2 + threadIdx.x;
+	int y = blockIdx.y * TILE_x2 + threadIdx.y;
 	int z = blockIdx.z * TILE + threadIdx.z;
 
 
-	float tempSum = 0.0f;
 	if (x < N && y < N && z < N) {
-		for (int m = 0; m < N / TILE; m++) {
 
-			shared_A[threadIdx.z][threadIdx.y][threadIdx.x] = device_A[z][y][m * TILE + threadIdx.x];
-			shared_C[threadIdx.y][threadIdx.x] = device_C[m * TILE + threadIdx.y][x];
+		float tempSum_0 = 0.0f;
+		float tempSum_1 = 0.0f;
+		float tempSum_2 = 0.0f;
+		float tempSum_3 = 0.0f;
+
+
+		shared_A_0[threadIdx.z][threadIdx.y][threadIdx.x] = device_A[z][y][threadIdx.x];
+		shared_C_0[threadIdx.y][threadIdx.x] = device_C[threadIdx.y][x];
+
+		shared_A_1[threadIdx.z][threadIdx.y][threadIdx.x] = device_A[z][y + TILE][threadIdx.x];
+		shared_C_1[threadIdx.y][threadIdx.x] = device_C[threadIdx.y][x + TILE];
+
+		__syncthreads();
+
+		for (int m = 1; m < (N / TILE - 1); m += 2) {
+
+			for (int s = 0; s < TILE; s++) {
+				tempSum_0 += shared_A_0[threadIdx.z][threadIdx.y][s] * shared_C_0[s][threadIdx.x];
+				tempSum_1 += shared_A_0[threadIdx.z][threadIdx.y][s] * shared_C_1[s][threadIdx.x];
+				tempSum_2 += shared_A_1[threadIdx.z][threadIdx.y][s] * shared_C_0[s][threadIdx.x];
+				tempSum_3 += shared_A_1[threadIdx.z][threadIdx.y][s] * shared_C_1[s][threadIdx.x];
+
+			}
+
+			shared_A_next_0[threadIdx.z][threadIdx.y][threadIdx.x] = device_A[z][y][m * TILE + threadIdx.x];
+			shared_C_next_0[threadIdx.y][threadIdx.x] = device_C[m * TILE + threadIdx.y][x];
+			shared_A_next_1[threadIdx.z][threadIdx.y][threadIdx.x] = device_A[z][y + TILE][m * TILE + threadIdx.x];
+			shared_C_next_1[threadIdx.y][threadIdx.x] = device_C[m * TILE + threadIdx.y][x + TILE];
 
 			__syncthreads();
 
+
 			for (int s = 0; s < TILE; s++) {
-				tempSum = tempSum + shared_A[threadIdx.z][threadIdx.y][s] * shared_C[s][threadIdx.x];
+				tempSum_0 += shared_A_next_0[threadIdx.z][threadIdx.y][s] * shared_C_next_0[s][threadIdx.x];
+				tempSum_1 += shared_A_next_0[threadIdx.z][threadIdx.y][s] * shared_C_next_1[s][threadIdx.x];
+				tempSum_2 += shared_A_next_1[threadIdx.z][threadIdx.y][s] * shared_C_next_0[s][threadIdx.x];
+				tempSum_3 += shared_A_next_1[threadIdx.z][threadIdx.y][s] * shared_C_next_1[s][threadIdx.x];
 			}
+
+			shared_A_0[threadIdx.z][threadIdx.y][threadIdx.x] = device_A[z][y][(m + 1) * TILE + threadIdx.x];
+			shared_C_0[threadIdx.y][threadIdx.x] = device_C[(m + 1) * TILE + threadIdx.y][x];
+			shared_A_1[threadIdx.z][threadIdx.y][threadIdx.x] = device_A[z][y + TILE][(m + 1) * TILE + threadIdx.x];
+			shared_C_1[threadIdx.y][threadIdx.x] = device_C[(m + 1) * TILE + threadIdx.y][x + TILE];
 
 			__syncthreads();
 		}
 
-		device_sum[z][y][x] = tempSum;
+
+		for (int s = 0; s != TILE; s++) {
+			tempSum_0 += shared_A_0[threadIdx.z][threadIdx.y][s] * shared_C_0[s][threadIdx.x];
+			tempSum_1 += shared_A_0[threadIdx.z][threadIdx.y][s] * shared_C_1[s][threadIdx.x];
+			tempSum_2 += shared_A_1[threadIdx.z][threadIdx.y][s] * shared_C_0[s][threadIdx.x];
+			tempSum_3 += shared_A_1[threadIdx.z][threadIdx.y][s] * shared_C_1[s][threadIdx.x];
+		}
+
+		int m = N / TILE - 1;
+
+		shared_A_next_0[threadIdx.z][threadIdx.y][threadIdx.x] = device_A[z][y][m * TILE + threadIdx.x];
+		shared_C_next_0[threadIdx.y][threadIdx.x] = device_C[m * TILE + threadIdx.y][x];
+		shared_A_next_1[threadIdx.z][threadIdx.y][threadIdx.x] = device_A[z][y + TILE][m * TILE + threadIdx.x];
+		shared_C_next_1[threadIdx.y][threadIdx.x] = device_C[m * TILE + threadIdx.y][x + TILE];
+
+		__syncthreads();
+
+		for (int s = 0; s != TILE; s++) {
+			tempSum_0 += shared_A_next_0[threadIdx.z][threadIdx.y][s] * shared_C_next_0[s][threadIdx.x];
+			tempSum_1 += shared_A_next_0[threadIdx.z][threadIdx.y][s] * shared_C_next_1[s][threadIdx.x];
+			tempSum_2 += shared_A_next_1[threadIdx.z][threadIdx.y][s] * shared_C_next_0[s][threadIdx.x];
+			tempSum_3 += shared_A_next_1[threadIdx.z][threadIdx.y][s] * shared_C_next_1[s][threadIdx.x];
+		}
+		__syncthreads();
+
+		device_sum[z][y][x] = tempSum_0;
+		device_sum[z][y][x + TILE] = tempSum_1;
+		device_sum[z][y + TILE][x] = tempSum_2;
+		device_sum[z][y + TILE][x + TILE] = tempSum_3;
+
+
 	}
+
 }
-
-
-
-
-
 
 int main()
 {
@@ -90,42 +156,28 @@ int main()
 
 	init(); //initialize host arrays
 
+	/* Copy the A array from the HOST memory to the DEVICE memory */
+	cudaStatus = cudaMemcpyToSymbol(device_A, A, N * N * N * sizeof(float));
+	if (cudaStatus != cudaSuccess) {
+		printf("\nA cudaMemcpy failed!");
+		cuda_error();
+		return -1;
+	}
 
-	dim3 dimBlock(TILE, TILE, TILE);
-	dim3 dimGrid((N + TILE - 1) / TILE, (N + TILE - 1) / TILE, (N + TILE - 1) / TILE);
+	/* Copy the C array from the HOST memory to the DEVICE memory */
+	cudaStatus = cudaMemcpyToSymbol(device_C, C, N * N * sizeof(float));
+	if (cudaStatus != cudaSuccess) {
+		printf("\nC cudaMemcpy failed!");
+		cuda_error();
+		return -1;
+	}
 
 
 	cudaEventRecord(start, 0); //get timer value
 
-	for (int i = 0; i < TIMES; i++) {
-		/* Copy the A array from the HOST memory to the DEVICE memory */
-		cudaStatus = cudaMemcpyToSymbol(device_A, A, N * N * N * sizeof(float));
-		if (cudaStatus != cudaSuccess) {
-			printf("\nA cudaMemcpy failed!");
-			cuda_error();
-			return -1;
-		}
-
-		/* Copy the C array from the HOST memory to the DEVICE memory */
-		cudaStatus = cudaMemcpyToSymbol(device_C, C, N * N * sizeof(float));
-		if (cudaStatus != cudaSuccess) {
-			printf("\nC cudaMemcpy failed!");
-			cuda_error();
-			return -1;
-		}
-
-
-		diotgen_ver1 << <dimGrid, dimBlock >> > ( );
-
-
-		/* Copy back the result from the DEVICE memory to the HOST memory */
-		cudaStatus = cudaMemcpyFromSymbol(sum, device_sum, N * N * N * sizeof(float));
-		if (cudaStatus != cudaSuccess) {
-			printf("\nS cudaMemcpy failed!");
-			cuda_error();
-			return -1;
-		}
-	}
+	dim3 dimBlock(TILE, TILE, TILE);
+	dim3 dimGrid((N + TILE_x2 - 1) / TILE_x2, (N + TILE_x2 - 1) / TILE_x2, (N + TILE_x2 - 1) / TILE_x2);
+	diotgen_ver1_optimised << <dimGrid, dimBlock >> > ( );
 
 	cudaEventRecord(stop, 0);  //get timer value
 	cudaEventSynchronize(stop);
@@ -134,8 +186,16 @@ int main()
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
 
+	/* Copy back the result from the DEVICE memory to the HOST memory */
+	cudaStatus = cudaMemcpyFromSymbol(sum, device_sum, N * N * N * sizeof(float));
+	if (cudaStatus != cudaSuccess) {
+		printf("\nS cudaMemcpy failed!");
+		cuda_error();
+		return -1;
+	}
 
-	double flops = (double)((double)2 * N * N * N * N) / (elapsed_time / TIMES);
+
+	double flops = (double)((double)ARITHMETICAL_OPS) / (elapsed_time);
 	printf("\nGflops achieved %f ", flops / 1000000);
 
 	cuda_error();
