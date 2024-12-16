@@ -410,7 +410,7 @@ void Sobel() {
 		for (col = 1; col < M - 1; col+=16) { // += num of elements in vector
 
 			//load 3 rows from image
-			__m256i row1 = _mm256_loadu_si256((__m256i*) & filt[row - 1][col]);
+			__m256i row1 = _mm256_loadu_si256((__m256i*) & filt[row - 1][col]); // loads 32 elements into vector
 			__m256i row2 = _mm256_loadu_si256((__m256i*) & filt[row][col]);
 			__m256i row3 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col]);
 
@@ -418,8 +418,8 @@ void Sobel() {
 			//GX
 			
 			// Horizontal kernal [-1,0,1]
-			__m256i hk_neg1 = _mm256_set1_epi8(-1); // can be static (move outside)
-			__m256i hk_0 = _mm256_set1_epi8(0);
+			__m256i hk_neg1 = _mm256_set1_epi8(-1); // loads 32 8 bit signed int
+			__m256i hk_0 = _mm256_set1_epi8(0); // can be static (move outside)
 			__m256i hk_1 = _mm256_set1_epi8(1);
 
 
@@ -496,60 +496,153 @@ void Sobel() {
 
 }
 
-void Sobel_Optimized() {
-	int i, j;
-	unsigned int row, col;
-	int Gx, Gy;
+void Sobel_AVX() {
+	unsigned int    row, col;
 
-	/*
-	// AVX registers for masks
-	__m256i GxMask = _mm256_set_epi8(
-		-1, 0, 1, -2, 0, 2, -1, 0, 1,
-		-1, 0, 1, -2, 0, 2, -1, 0, 1,
-		-1, 0, 1, -2, 0, 2, -1, 0, 1,
-		-1, 0, 1, -2, 0, 2);
+	__m256i kernel_Gx_1 = _mm256_set_epi8(-1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-	__m256i GyMask = _mm256_set_epi8(
-		-1, -2, -1, 0, 0, 0, 1, 2, 1,
-		-1, -2, -1, 0, 0, 0, 1, 2, 1,
-		-1, -2, -1, 0, 0, 0, 1, 2, 1,
-		-1, -2, -1, 0, 0, 0, 1, 2);
+	__m256i kernel_Gx_2 = _mm256_set_epi8(-2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+	__m256i kernel_Gx_3 = _mm256_set_epi8(-1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+
+	__m256i kernel_Gy_1 = _mm256_set_epi8(-1, -2, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+										   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+	__m256i kernel_Gy_3 = _mm256_set_epi8(1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+										  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
 
 	for (row = 1; row < N - 1; row++) {
-		for (col = 1; col < M - 1; col += 16) { // Process 16 pixels at a time
+		for (col = 1; col < M - 1; col +=32) { // += num of elements in vector
 
-			// Load 3 rows of 16 pixels each
-			__m256i row1 = _mm256_loadu_si256((__m256i*) & filt[row - 1][col - 1]);
-			__m256i row2 = _mm256_loadu_si256((__m256i*) & filt[row][col - 1]);
-			__m256i row3 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col - 1]);
+			//load 3 rows from image
+			__m256i row1 = _mm256_loadu_si256((__m256i*) & filt[row - 1][col]); // loads 32 elements into vector
+			__m256i row2 = _mm256_loadu_si256((__m256i*) & filt[row][col]);
+			__m256i row3 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col]);
 
-			// Compute Gx and Gy
-			__m256i Gx = _mm256_setzero_si256();
-			__m256i Gy = _mm256_setzero_si256();
 
-			Gx = _mm256_add_epi16(Gx, _mm256_maddubs_epi16(row1, GxMask));
-			Gx = _mm256_add_epi16(Gx, _mm256_maddubs_epi16(row2, GxMask));
-			Gx = _mm256_add_epi16(Gx, _mm256_maddubs_epi16(row3, GxMask));
+			// Apply Gx convolution
+			__m256i gx = _mm256_add_epi16(
+				_mm256_maddubs_epi16(row1, kernel_Gx_1),
+				_mm256_maddubs_epi16(row2, kernel_Gx_2)
+			);
 
-			Gy = _mm256_add_epi16(Gy, _mm256_maddubs_epi16(row1, GyMask));
-			Gy = _mm256_add_epi16(Gy, _mm256_maddubs_epi16(row2, GyMask));
-			Gy = _mm256_add_epi16(Gy, _mm256_maddubs_epi16(row3, GyMask));
+			gx = _mm256_add_epi16(
+				gx,
+				_mm256_maddubs_epi16(row3, kernel_Gx_3)
+			);
 
-			// Compute gradient magnitude
-			__m256i gradient = _mm256_hadd_epi16(_mm256_mullo_epi16(Gx, Gx), _mm256_mullo_epi16(Gy, Gy));
 
-			// Store results back
-			_mm256_storeu_si256((__m256i*) & gradient[row][col], gradient);
+			// Apply Gy convolution
+			__m256i gy = _mm256_add_epi16(
+				_mm256_maddubs_epi16(row1, kernel_Gy_1),
+				_mm256_maddubs_epi16(row3, kernel_Gy_3)
+			);
 
-			// Optional: approximate direction calculations for edgeDir
-			// Skip if only gradient magnitude is needed.
+
+			// Approximate gradient magnitude: |Gx| + |Gy|
+			gx = _mm256_abs_epi16(gx);
+			gy = _mm256_abs_epi16(gy);
+			__m256i gradient_vec = _mm256_add_epi16(gx, gy);
+
+			// Pack 16-bit gradient values back to 8-bit
+			__m256i result = _mm256_packus_epi16(gradient_vec, gradient_vec);
+
+			// Store the result
+			_mm256_storeu_si256((__m256i*) & gradient[row][col], result);
+		}
+	}
+}
+
+
+
+
+void Sobel_Optimized() {
+	int i, j;
+	unsigned int row, col;
+
+
+	for (row = 1; row < N - 1; row++) {
+		for (col = 1; col < M - 1; col += 30) { // += num of elements in vector
+			/*
+			* vec index:		0  1  2  3  4  5  6  7  8  9 ... 31
+			* load row(col: x):	a, b, c, d, e, f, g, h, i, j ...
+			* 
+			* convolute:	|   b, c, d, e, f, g, h, i, j, ? ...  -> ( This row is load(col: x+1) )
+			* [-1, 0, 1]	V   -  -  -  -  -  -  -  -  -  -
+			*					?  a  b  c  d  e  f  g  h  i	  -> ( This row is -load(col: x-1) )
+			* 
+			* index 0 and index 31 are missed because of shift (x+1) & (x-1) respectivly -> 30 elements
+			*/
+
+			__m256i row_main = _mm256_loadu_si256((__m256i*) & filt[row][col]);
+			__m256i row_shift_1 = _mm256_loadu_si256((__m256i*) & filt[row][col + 1]);
+			__m256i row_shift_neg1 = _mm256_loadu_si256((__m256i*) & filt[row][col - 1]);
+
+
+
+
 		}
 	}
 
-	*/
 }
 
+
+void Sobel_Experiment() {
+
+	// GxRow {-1, 0, 1} and GyRow {1, 2, 1} packed into AVX registers
+	__m256i gx_mask = _mm256_set_epi8(
+		0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, // Apply to horizontal rows
+		0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1);
+
+	__m256i gy_mask = _mm256_set_epi8(
+		0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 1, 2, 1, 0, 0,
+		0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 1, 2, 1, 0, 0);
+
+	for (int row = 1; row < N - 1; ++row) {
+		for (int col = 1; col < M - 1; col += 16) { // Process 16 pixels per iteration
+			// Load 3 rows (for Sobel 3x3 kernel)
+			__m256i top_row = _mm256_loadu_si256((__m256i*) & filt[row - 1][col - 1]);
+			__m256i mid_row = _mm256_loadu_si256((__m256i*) & filt[row][col - 1]);
+			__m256i bot_row = _mm256_loadu_si256((__m256i*) & filt[row + 1][col - 1]);
+
+			// Gx computation using maddubs (multiplying 8-bit pairs and summing into 16-bit)
+			__m256i gx_top = _mm256_maddubs_epi16(top_row, gx_mask);
+			__m256i gx_mid = _mm256_maddubs_epi16(mid_row, gx_mask);
+			__m256i gx_bot = _mm256_maddubs_epi16(bot_row, gx_mask);
+
+			// Gy computation using maddubs
+			__m256i gy_top = _mm256_maddubs_epi16(top_row, gy_mask);
+			__m256i gy_mid = _mm256_maddubs_epi16(mid_row, gy_mask);
+			__m256i gy_bot = _mm256_maddubs_epi16(bot_row, gy_mask);
+
+			// Sum up Gx and Gy (GxTemp and GyTemp equivalent)
+			__m256i gx = _mm256_add_epi16(gx_top, _mm256_add_epi16(gx_mid, gx_bot));
+			__m256i gy = _mm256_add_epi16(gy_top, _mm256_add_epi16(gy_mid, gy_bot));
+
+			// Compute gradient magnitude: sqrt(Gx^2 + Gy^2)
+			__m256i gx_squared = _mm256_mullo_epi16(gx, gx);
+			__m256i gy_squared = _mm256_mullo_epi16(gy, gy);
+			__m256i sum_squared = _mm256_add_epi16(gx_squared, gy_squared);
+
+			// Approximate sqrt(sum_squared) using integer arithmetic
+			//__m256i gradient_val = _mm256_sqrt_ph(sum_squared);
+			//__m256i gradient_val = _mm256_sqrt_epi16_approx(sum_squared);
+			gx = _mm256_abs_epi16(gx);
+			gy = _mm256_abs_epi16(gy);
+			__m256i gradient_vec = _mm256_add_epi16(gx, gy);
+
+
+			// Store gradient back
+			_mm256_storeu_si256((__m256i*) & gradient[row][col], gradient_vec);
+
+		}
+	}
+}
 
 
 
@@ -617,7 +710,10 @@ int image_detection() {
 	write_image(OUT_NAME1, print);
 
 
-	Sobel();
+	//Sobel();
+	//Sobel_AVX();
+	Sobel_Experiment();
+	
 	//Sobel_seperable();
 	//Sobel_Original();
 	//Sobel_Optimized();
