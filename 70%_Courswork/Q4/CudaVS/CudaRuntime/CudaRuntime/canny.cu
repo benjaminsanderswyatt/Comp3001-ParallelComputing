@@ -157,376 +157,8 @@ GY
 
 // pixels are 8 bits ACX gives 32 per instruction
 
-void Sobel_seperable() {
 
 
-	int i, j;
-	unsigned int    row, col;
-	int rowOffset;
-	int colOffset;
-	int Gx;
-	int Gy;
-	float thisAngle;
-	int newAngle;
-	int newPixel;
-
-	unsigned char temp;
-
-	/*
-	static const int GxMask[3][3] = {
-	{-1, 0, 1},
-	{-2, 0, 2},
-	{-1, 0, 1}
-	};
-
-	static const int GyMask[3][3] = {
-		{-1, -2, -1},
-		{0, 0, 0},
-		{1, 2, 1}
-	};
-	*/
-
-	/*
-	Gx += filt[row - 1][col - 1] * GxMask[0][0];
-	Gx += filt[row - 1][col    ] * GxMask[0][1];
-	Gx += filt[row - 1][col + 1] * GxMask[0][2];
-
-	Gx += filt[row][col - 1] * GxMask[1][0];
-	Gx += filt[row][col] * GxMask[1][1];
-	Gx += filt[row][col + 1] * GxMask[1][2];
-
-	Gx += filt[row + 1][col - 1] * GxMask[2][0];
-	Gx += filt[row + 1][col] * GxMask[2][1];
-	Gx += filt[row + 1][col + 1] * GxMask[2][2];
-
-	Gy += filt[row - 1][col - 1] * GyMask[0][0];
-	Gy += filt[row - 1][col] * GyMask[0][1];
-	Gy += filt[row - 1][col + 1] * GyMask[0][2];
-
-	Gy += filt[row][col - 1] * GyMask[1][0];
-	Gy += filt[row][col] * GyMask[1][1];
-	Gy += filt[row][col + 1] * GyMask[1][2];
-
-	Gy += filt[row + 1][col - 1] * GyMask[2][0];
-	Gy += filt[row + 1][col] * GyMask[2][1];
-	Gy += filt[row + 1][col + 1] * GyMask[2][2];
-	*/
-
-	//__m256i GxMask = _mm256_set_epi8(-1, 0, 1, -2, 0, 2, -1, 0, 1, -1, 0, 1, -2, 0, 2, -1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	//__m256i GyMask = _mm256_set_epi8(-1, -2, -1, 0, 0, 0, 1, 2, 1, -1, -2, -1, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-
-
-
-
-
-
-
-	// ARE M AND N ROW / COLUMNS THE CORRECT WAY AROUND???????????????????????
-
-
-
-
-
-
-
-	// Declare separable Sobel masks
-	static const int GxRow[3] = { -1, 0, 1 };  // Horizontal filter for Gx
-	static const int GxCol[3] = { 1, 2, 1 }; // Vertical filter for Gx
-
-	static const int GyRow[3] = { 1, 2, 1 }; // Horizontal filter for Gy
-	static const int GyCol[3] = { -1, 0, 1 };  // Vertical filter for Gy
-
-	// Dynamically allocate memory for GxTemp and GyTemp
-	int* GxTemp = (int*)malloc(N * M * sizeof(int)); // [row][col] -> [row * M + col]
-	int* GyTemp = (int*)malloc(N * M * sizeof(int));
-
-	// Rows init 0
-	for (int i = 0; i < M; i++) {
-		GxTemp[i] = 0;
-		GyTemp[i] = 0;
-
-		GxTemp[M * (N - 1) + i] = 0;
-		GyTemp[M * (N - 1) + i] = 0;
-	}
-
-	// Columns init 0
-	for (int i = 1; i < N - 1; i++) { // Corners have already been done
-		GxTemp[i] = 0;
-		GyTemp[i] = 0;
-
-		GxTemp[M * i + M - 1] = 0;
-		GyTemp[M * i + M - 1] = 0;
-	}
-
-
-
-	//---------------------------- Row convolution -------------------------------------------
-	for (row = 1; row < N - 1; row++) {
-		for (col = 1; col < M - 1; col++) {
-
-			// Gx { -1, 0, 1 }
-			// Gy { 1, 2, 1 }
-
-			Gx = 0;
-			Gy = 0;
-			/*
-			// Horizontal filter
-			Gx += filt[row - 1][col] * GxRow[0];
-			Gy += filt[row - 1][col] * GyRow[0];
-
-			// Gx += filt[row][col] * GxRow[1]; // Multiplying by 0
-			Gy += filt[row][col] * GyRow[1];
-
-			Gx += filt[row + 1][col] * GxRow[2];
-			Gy += filt[row + 1][col] * GyRow[2];
-			*/
-
-
-			// -------------- TODO * -1 and * 2 can be bitwise operations AVX?
-			Gx += filt[row - 1][col] * -1;
-			Gy += filt[row - 1][col];
-
-			// Gx += filt[row][col] * GxRow[1]; // Multiplying by 0
-			Gy += filt[row][col] * 2;
-
-			Gx += filt[row + 1][col];
-			Gy += filt[row + 1][col];
-
-
-
-			GxTemp[row * M + col] = Gx;
-			GyTemp[row * M + col] = Gy;
-
-		}
-	}
-
-	//---------------------------- Column convolution + Angles -------------------------------------------
-	for (row = 1; row < N - 1; row++) {
-		for (col = 1; col < M - 1; col++) {
-
-			// Gx { 1, 2, 1 }
-			// Gy { -1, 0, 1 }
-
-			Gx = 0;
-			Gy = 0;
-			/*
-			// Vertical filter
-			Gx += GxTemp[row][col - 1] * GxCol[0];
-			Gy += GyTemp[row][col - 1] * GyCol[0];
-
-			Gx += GxTemp[row][col] * GxCol[1];
-			// Gy += GyTemp[row][col] * GyCol[1]; // Multiplying by 0
-
-			Gx += GxTemp[row][col + 1] * GxCol[2];
-			Gy += GyTemp[row][col + 1] * GyCol[2];
-			*/
-
-			Gx += GxTemp[row * M + col - 1];
-			Gy += GyTemp[row * M + col - 1] * -1;
-
-			Gx += GxTemp[row * M + col] * 2;
-			// Gy += GyTemp[row][col] * GyCol[1]; // Multiplying by 0
-
-			Gx += GxTemp[row * M + col + 1];
-			Gy += GyTemp[row * M + col + 1];
-
-
-
-			// Calculate gradient magnitude
-			gradient[row][col] = (unsigned char)(sqrt(Gx * Gx + Gy * Gy));
-
-			// Calculate edge direction
-			thisAngle = (((atan2(Gx, Gy)) / 3.14159) * 180.0);
-
-
-			// Convert angle to closest direction
-			if (((thisAngle >= -22.5) && (thisAngle <= 22.5)) || (thisAngle >= 157.5) || (thisAngle <= -157.5))
-				newAngle = 0;
-			else if (((thisAngle > 22.5) && (thisAngle < 67.5)) || ((thisAngle > -157.5) && (thisAngle < -112.5)))
-				newAngle = 45;
-			else if (((thisAngle >= 67.5) && (thisAngle <= 112.5)) || ((thisAngle >= -112.5) && (thisAngle <= -67.5)))
-				newAngle = 90;
-			else if (((thisAngle > 112.5) && (thisAngle < 157.5)) || ((thisAngle > -67.5) && (thisAngle < -22.5)))
-				newAngle = 135;
-
-			edgeDir[row][col] = newAngle;
-		}
-	}
-
-
-	free(GxTemp);
-	free(GyTemp);
-
-
-
-	/*
-	//---------------------------- Determine edge directions and gradient strengths -------------------------------------------
-	for (row = 1; row < N - 1; row++) {
-		for (col = 1; col < M - 1; col++) {
-
-			Gx = 0;
-			Gy = 0;
-
-			// Apply horizontal Sobel filter (row-wise convolution)
-			for (int offset = -1; offset <= 1; offset++) {
-				Gx += filt[row][col + offset] * GxMask[offset + 1];
-				Gy += filt[row + offset][col] * GyMask[offset + 1];
-			}
-
-			gradient[row][col] = (unsigned char)(sqrt(Gx * Gx + Gy * Gy));
-
-			thisAngle = (((atan2(Gx, Gy)) / 3.14159) * 180.0);
-
-			// Convert actual edge direction to approximate value
-			if (thisAngle < 0)
-				thisAngle += 180.0;
-
-			if (thisAngle <= 22.5 || thisAngle > 157.5)
-				newAngle = 0;
-			else if (thisAngle <= 67.5)
-				newAngle = 45;
-			else if (thisAngle <= 112.5)
-				newAngle = 90;
-			else
-				newAngle = 135;
-
-
-
-			edgeDir[row][col] = newAngle;
-		}
-	}
-	*/
-}
-
-
-
-
-void Sobel() {
-	unsigned int    row, col;
-
-
-
-
-	
-	for (row = 1; row < N - 1; row++) {
-		for (col = 1; col < M - 1; col+=16) { // += num of elements in vector
-
-			//load 3 rows from image
-			__m256i row1 = _mm256_loadu_si256((__m256i*) & filt[row - 1][col]); // loads 32 elements into vector
-			__m256i row2 = _mm256_loadu_si256((__m256i*) & filt[row][col]);
-			__m256i row3 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col]);
-
-
-			//GX
-			
-			// Horizontal kernal [-1,0,1]
-			__m256i hk_neg1 = _mm256_set1_epi8(-1); // loads 32 8 bit signed int
-			__m256i hk_0 = _mm256_set1_epi8(0); // can be static (move outside)
-			__m256i hk_1 = _mm256_set1_epi8(1);
-
-
-			__m256i result_row1 = _mm256_maddubs_epi16(row1, hk_neg1); // returns 16 bit signed int
-			__m256i result_row2 = _mm256_maddubs_epi16(row2, hk_0);
-			__m256i result_row3 = _mm256_maddubs_epi16(row3, hk_1);
-
-			__m256i horizontal_sum_x = _mm256_add_epi16(result_row1, result_row2);
-			horizontal_sum_x = _mm256_add_epi16(horizontal_sum_x, result_row3); // 16 bit signed
-
-			// Vertical kernal [1,2,1]'
-			__m256i vk_1 = _mm256_set1_epi8(1); // can be static (move outside)
-			__m256i vk_2 = _mm256_set1_epi8(2);
-
-			__m256i result_row1_x = _mm256_maddubs_epi16(result_row1, vk_1);
-			__m256i result_row2_x = _mm256_maddubs_epi16(result_row2, vk_2);
-			__m256i result_row3_x = _mm256_maddubs_epi16(result_row3, vk_1);
-
-			__m256i vertical_sum_x = _mm256_add_epi16(result_row1_x, result_row2_x);
-			vertical_sum_x = _mm256_add_epi16(vertical_sum_x, result_row3_x);
-
-
-
-			//GY
-			
-			// Horizontal kernal [1,2,1]
-			__m256i y_hk_1 = _mm256_set1_epi8(1);
-			__m256i y_hk_2 = _mm256_set1_epi8(2);
-
-			__m256i result_row1_y = _mm256_maddubs_epi16(row1, y_hk_1);
-			__m256i result_row2_y = _mm256_maddubs_epi16(row2, y_hk_2);
-			__m256i result_row3_y = _mm256_maddubs_epi16(row3, y_hk_1);
-
-			__m256i horizontal_sum_y = _mm256_add_epi16(result_row1_y, result_row2_y);
-			horizontal_sum_y = _mm256_add_epi16(horizontal_sum_y, result_row3_y);
-
-			// Vertical kernal [-1,0,1]'
-			__m256i y_vk_neg1 = _mm256_set1_epi16(-1);
-			__m256i y_vk_0 = _mm256_set1_epi16(0);
-			__m256i y_vk_1 = _mm256_set1_epi16(1);
-
-			__m256i vertical_sum_y = _mm256_add_epi16(_mm256_maddubs_epi16(result_row1_y, y_vk_neg1), _mm256_maddubs_epi16(result_row2_y, y_vk_0));
-
-			vertical_sum_y = _mm256_add_epi16(vertical_sum_y, _mm256_maddubs_epi16(result_row3_y, y_vk_1));
-
-
-
-
-			
-			// Compute Approximate Gradient Magnitude (L1 Norm)
-			// Square Gx and Gy
-			__m256i gx_squared = _mm256_mullo_epi16(vertical_sum_x, vertical_sum_x);
-			__m256i gy_squared = _mm256_mullo_epi16(vertical_sum_y, vertical_sum_y);
-
-			// Sum Gx^2 + Gy^2
-			__m256i sum_squares = _mm256_add_epi16(gx_squared, gy_squared);
-
-			// Convert to float for sqrt calculation
-			__m256 ps_squares = _mm256_cvtepi32_ps(sum_squares);
-
-			// Compute sqrt
-			__m256 magnitude = _mm256_sqrt_ps(ps_squares);
-
-			// Convert to unsigned char and store
-			__m256i gradient_result = _mm256_cvtps_epi32(magnitude);
-			_mm256_storeu_si256((__m256i*)&gradient[row][col], gradient_result);
-			
-		}
-	}
-
-
-
-
-
-}
-
-void Sobel_Optimized() {
-	int i, j;
-	unsigned int row, col;
-
-
-	for (row = 1; row < N - 1; row++) {
-		for (col = 1; col < M - 1; col += 30) { // += num of elements in vector
-			/*
-			* vec index:		0  1  2  3  4  5  6  7  8  9 ... 31
-			* load row(col: x):	a, b, c, d, e, f, g, h, i, j ...
-			* 
-			* convolute:	|   b, c, d, e, f, g, h, i, j, ? ...  -> ( This row is load(col: x+1) )
-			* [-1, 0, 1]	V   -  -  -  -  -  -  -  -  -  -
-			*					?  a  b  c  d  e  f  g  h  i	  -> ( This row is -load(col: x-1) )
-			* 
-			* index 0 and index 31 are missed because of shift (x+1) & (x-1) respectivly -> 30 elements
-			*/
-
-			__m256i row_main = _mm256_loadu_si256((__m256i*) & filt[row][col]);
-			__m256i row_shift_1 = _mm256_loadu_si256((__m256i*) & filt[row][col + 1]);
-			__m256i row_shift_neg1 = _mm256_loadu_si256((__m256i*) & filt[row][col - 1]);
-
-
-
-
-		}
-	}
-
-}
 
 void Shifter() {
 	int i, j;
@@ -616,7 +248,78 @@ void Shifter() {
 }
 
 
-void New() {
+
+
+void print_m256i_8(__m256i vec) {
+	// Create an array to hold the elements of the vector
+	int8_t elements[32]; // Adjust size depending on data type
+	_mm256_storeu_si256((__m256i*)elements, vec); // Store the vector into the array
+
+	printf("Vector elements: ");
+	for (int i = 0; i < 32; i++) { // Adjust loop limit depending on the data type
+		printf("%d ", elements[i]); // Use %d for signed integers
+	}
+	printf("\n");
+}
+
+void print_m256i_16(__m256i vec) {
+	// Create an array to hold the elements of the vector
+	int16_t elements[16]; // Adjust size depending on data type
+	_mm256_storeu_si256((__m256i*)elements, vec); // Store the vector into the array
+
+	printf("Vector elements: ");
+	for (int i = 0; i < 16; i++) { // Adjust loop limit depending on the data type
+		printf("%d ", elements[i]); // Use %d for signed integers
+	}
+	printf("\n");
+}
+
+void print_m256i_32(__m256i vec) {
+	// Create an array to hold the elements of the vector
+	int32_t elements[8]; // Adjust size depending on data type
+	_mm256_storeu_si256((__m256i*)elements, vec); // Store the vector into the array
+
+	printf("Vector elements: ");
+	for (int i = 0; i < 8; i++) { // Adjust loop limit depending on the data type
+		printf("%d ", elements[i]); // Use %d for signed integers
+	}
+	printf("\n");
+}
+
+
+int checkRowAt = 1;
+int checkColAt = 3;
+
+void print_loop_8(__m256i vec, int row, int col, char* hi) {
+	if (row == checkRowAt && col == checkColAt) {
+		printf(hi);
+		printf("\n");
+		print_m256i_8(vec);
+		printf("\n");
+	}
+}
+
+void print_loop_16(__m256i vec, int row, int col, char* hi) {
+	if (row == checkRowAt && col == checkColAt) {
+		printf(hi);
+		printf("\n");
+		print_m256i_16(vec);
+		printf("\n");
+	}
+}
+
+void print_single(int num, int row, int col, char* hi) {
+	if (row == checkRowAt && col == checkColAt) {
+		printf(hi);
+		printf("\n");
+		printf("num: %d",num);
+		printf("\n");
+	}
+}
+
+
+
+void Working() {
 	int i, j;
 	unsigned int row, col;
 
@@ -625,88 +328,119 @@ void New() {
 	// [-1, 0, 1]
 	// [-2, 0, 2]
 	// [-1, 0, 1]
-	//__m256i GxMask1 = _mm256_set_epi8(-1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	//__m256i GxMask2 = _mm256_set_epi8(-2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	//__m256i GxMask3 = GxMask1;
+	//printf("\n--- GxMask ---\n");
 
-	// unsigned representation of signed
-	__m256i GxMask1 = _mm256_set_epi8(127, 128, 129, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128);
-	__m256i GxMask2 = _mm256_set_epi8(126, 128, 130, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128);
+	__m256i GxMask1 = _mm256_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, -1);
+	__m256i GxMask2 = _mm256_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, -2);
 	__m256i GxMask3 = GxMask1;
+
+	//print_m256i_8(GxMask1);
+	//print_m256i_8(GxMask2);
+	//print_m256i_8(GxMask3);
+	
+
 
 
 	// [-1,-2,-1]
 	// [ 0, 0, 0]
 	// [ 1, 2, 1]
-	//__m256i GyMask1 = _mm256_set_epi8(-1, -2, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	//__m256i GyMask3 = _mm256_set_epi8(1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	//printf("\n--- GyMask ---\n");
+	
+	__m256i GyMask1 = _mm256_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -2, -1);
+	__m256i GyMask3 = _mm256_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1);
 
-	__m256i GyMask1 = _mm256_set_epi8(127, 126, 127, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128);
-	__m256i GyMask3 = _mm256_set_epi8(129, 130, 129, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128);
+	//print_m256i_8(GyMask1);
+	//print_m256i_8(GyMask3);
 
 
-
+	//printf("\n--- Loop ---\n");
 	for (row = 1; row < N - 1; row++) {
 		for (col = 1; col < M - 1; col++) {
 
+			
 			// Load Row 1
-			__m256i row1 = _mm256_loadu_si256((__m256i*) & filt[row - 1][col]);
+			__m256i row1 = _mm256_loadu_si256((__m256i*) & filt[row - 1][col-1]);
 			// Load Row 2
-			__m256i row2 = _mm256_loadu_si256((__m256i*) & filt[row][col]);
+			__m256i row2 = _mm256_loadu_si256((__m256i*) & filt[row][col-1]);
 			// Load Row 3
-			__m256i row3 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col]);
+			__m256i row3 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col-1]);
 
+			//print_loop_8(row1, row, col, "row1");
+			//print_loop_8(row2, row, col, "row2");
+			//print_loop_8(row3, row, col, "row3");
+
+			
 
 			// --- Gx ---
 			
 			// Row 1
 			__m256i A_gx = _mm256_maddubs_epi16(row1, GxMask1);
+			//print_loop_16(A_gx, row, col, "A_gx");
+
 			__m256i hadd1_gx = _mm256_hadd_epi16(A_gx, A_gx);
+			//print_loop_16(hadd1_gx, row, col, "hadd1_gx");
 
 			// Row 2
 			__m256i B_gx = _mm256_maddubs_epi16(row2, GxMask2);
+			//print_loop_16(B_gx, row, col, "B_gx");
+
 			__m256i hadd2_gx = _mm256_hadd_epi16(B_gx, B_gx);
+			//print_loop_16(hadd2_gx, row, col, "hadd2_gx");
 
 			// Row 3
 			__m256i C_gx = _mm256_maddubs_epi16(row3, GxMask3);
+			//print_loop_16(C_gx, row, col, "C_gx");
+
 			__m256i hadd3_gx = _mm256_hadd_epi16(C_gx, C_gx);
+			//print_loop_16(hadd3_gx, row, col, "hadd3_gx");
 
 
 			// Final
 			__m256i Gx = _mm256_add_epi16(hadd1_gx, hadd2_gx);
-			Gx = _mm256_add_epi16(Gx, hadd3_gx);
+			//print_loop_16(Gx, row, col, "Gx");
 
+			Gx = _mm256_add_epi16(Gx, hadd3_gx);
+			//print_loop_16(Gx, row, col, "Gx");
 
 
 			// --- Gy ---
 			
 			// Row 1
 			__m256i A_gy = _mm256_maddubs_epi16(row1, GyMask1);
+			//print_loop_16(A_gy, row, col, "A_gy");
+
 			__m256i hadd1_gy = _mm256_hadd_epi16(A_gy, A_gy);
+			//print_loop_16(hadd1_gy, row, col, "hadd1_gy");
 
 			// Row 3
 			__m256i C_gy = _mm256_maddubs_epi16(row3, GyMask3);
-			__m256i hadd3_gy = _mm256_hadd_epi16(C_gy, C_gy);
+			//print_loop_16(C_gy, row, col, "C_gy");
 
+			__m256i hadd3_gy = _mm256_hadd_epi16(C_gy, C_gy);
+			//print_loop_16(hadd3_gy, row, col, "hadd3_gy");
 
 
 			// Final
 			__m256i Gy = _mm256_add_epi16(hadd1_gy, hadd3_gy);
+			//print_loop_16(Gy, row, col, "Gy");
 
 
 
 
+			int singleGx = (signed short) _mm256_extract_epi16(Gx, 0);
+			int singleGy = (signed short) _mm256_extract_epi16(Gy, 0);
 
-			int singleGx = _mm256_extract_epi16(Gx, 0);
-			int singleGy = _mm256_extract_epi16(Gy, 0);
-
-			singleGx -= 128;
-			singleGy -= 128;
+			//print_single(singleGx, row, col, "singleGx");
+			//print_single(singleGy, row, col, "singleGy");
 
 			
 			// Calculate gradient magnitude
 			gradient[row][col] = (unsigned char)(sqrt(singleGx * singleGx + singleGy * singleGy));
 
+			//print_single(gradient[row][col], row, col, "gradient[row][col]");
+
+
+			
 			// Calculate edge direction
 			float thisAngle = (((atan2(singleGx, singleGy)) / 3.14159) * 180.0);
 
