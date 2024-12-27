@@ -399,6 +399,8 @@ void Sobel_seperable() {
 }
 
 
+
+
 void Sobel() {
 	unsigned int    row, col;
 
@@ -496,71 +498,6 @@ void Sobel() {
 
 }
 
-void Sobel_AVX() {
-	unsigned int    row, col;
-
-	__m256i kernel_Gx_1 = _mm256_set_epi8(-1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-
-	__m256i kernel_Gx_2 = _mm256_set_epi8(-2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-
-	__m256i kernel_Gx_3 = _mm256_set_epi8(-1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-
-
-	__m256i kernel_Gy_1 = _mm256_set_epi8(-1, -2, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-										   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-
-	__m256i kernel_Gy_3 = _mm256_set_epi8(1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-										  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-
-
-	for (row = 1; row < N - 1; row++) {
-		for (col = 1; col < M - 1; col +=32) { // += num of elements in vector
-
-			//load 3 rows from image
-			__m256i row1 = _mm256_loadu_si256((__m256i*) & filt[row - 1][col]); // loads 32 elements into vector
-			__m256i row2 = _mm256_loadu_si256((__m256i*) & filt[row][col]);
-			__m256i row3 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col]);
-
-
-			// Apply Gx convolution
-			__m256i gx = _mm256_add_epi16(
-				_mm256_maddubs_epi16(row1, kernel_Gx_1),
-				_mm256_maddubs_epi16(row2, kernel_Gx_2)
-			);
-
-			gx = _mm256_add_epi16(
-				gx,
-				_mm256_maddubs_epi16(row3, kernel_Gx_3)
-			);
-
-
-			// Apply Gy convolution
-			__m256i gy = _mm256_add_epi16(
-				_mm256_maddubs_epi16(row1, kernel_Gy_1),
-				_mm256_maddubs_epi16(row3, kernel_Gy_3)
-			);
-
-
-			// Approximate gradient magnitude: |Gx| + |Gy|
-			gx = _mm256_abs_epi16(gx);
-			gy = _mm256_abs_epi16(gy);
-			__m256i gradient_vec = _mm256_add_epi16(gx, gy);
-
-			// Pack 16-bit gradient values back to 8-bit
-			__m256i result = _mm256_packus_epi16(gradient_vec, gradient_vec);
-
-			// Store the result
-			_mm256_storeu_si256((__m256i*) & gradient[row][col], result);
-		}
-	}
-}
-
-
-
-
 void Sobel_Optimized() {
 	int i, j;
 	unsigned int row, col;
@@ -591,54 +528,204 @@ void Sobel_Optimized() {
 
 }
 
-
-void Sobel_Experiment() {
-
-	// GxRow {-1, 0, 1} and GyRow {1, 2, 1} packed into AVX registers
-	__m256i gx_mask = _mm256_set_epi8(
-		0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1, // Apply to horizontal rows
-		0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, -1, -1, -1, -1);
-
-	__m256i gy_mask = _mm256_set_epi8(
-		0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 1, 2, 1, 0, 0,
-		0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 1, 2, 1, 0, 0);
-
-	for (int row = 1; row < N - 1; ++row) {
-		for (int col = 1; col < M - 1; col += 16) { // Process 16 pixels per iteration
-			// Load 3 rows (for Sobel 3x3 kernel)
-			__m256i top_row = _mm256_loadu_si256((__m256i*) & filt[row - 1][col - 1]);
-			__m256i mid_row = _mm256_loadu_si256((__m256i*) & filt[row][col - 1]);
-			__m256i bot_row = _mm256_loadu_si256((__m256i*) & filt[row + 1][col - 1]);
-
-			// Gx computation using maddubs (multiplying 8-bit pairs and summing into 16-bit)
-			__m256i gx_top = _mm256_maddubs_epi16(top_row, gx_mask);
-			__m256i gx_mid = _mm256_maddubs_epi16(mid_row, gx_mask);
-			__m256i gx_bot = _mm256_maddubs_epi16(bot_row, gx_mask);
-
-			// Gy computation using maddubs
-			__m256i gy_top = _mm256_maddubs_epi16(top_row, gy_mask);
-			__m256i gy_mid = _mm256_maddubs_epi16(mid_row, gy_mask);
-			__m256i gy_bot = _mm256_maddubs_epi16(bot_row, gy_mask);
-
-			// Sum up Gx and Gy (GxTemp and GyTemp equivalent)
-			__m256i gx = _mm256_add_epi16(gx_top, _mm256_add_epi16(gx_mid, gx_bot));
-			__m256i gy = _mm256_add_epi16(gy_top, _mm256_add_epi16(gy_mid, gy_bot));
-
-			// Compute gradient magnitude: sqrt(Gx^2 + Gy^2)
-			__m256i gx_squared = _mm256_mullo_epi16(gx, gx);
-			__m256i gy_squared = _mm256_mullo_epi16(gy, gy);
-			__m256i sum_squared = _mm256_add_epi16(gx_squared, gy_squared);
-
-			// Approximate sqrt(sum_squared) using integer arithmetic
-			//__m256i gradient_val = _mm256_sqrt_ph(sum_squared);
-			//__m256i gradient_val = _mm256_sqrt_epi16_approx(sum_squared);
-			gx = _mm256_abs_epi16(gx);
-			gy = _mm256_abs_epi16(gy);
-			__m256i gradient_vec = _mm256_add_epi16(gx, gy);
+void Shifter() {
+	int i, j;
+	unsigned int row, col;
 
 
-			// Store gradient back
-			_mm256_storeu_si256((__m256i*) & gradient[row][col], gradient_vec);
+	for (row = 1; row < N - 1; row++) {
+		for (col = 1; col < M - 1; col += 30) { // += num of elements in vector
+			/*
+			* vec index:		0  1  2  3  4  5  6  7  8  9 ... 31
+			* load row(col: x):	a, b, c, d, e, f, g, h, i, j ...
+			*
+			* convolute:	|   b, c, d, e, f, g, h, i, j, ? ...  -> ( This row is load(col: x+1) )
+			* [-1, 0, 1]	V   -  -  -  -  -  -  -  -  -  -
+			*					?  a  b  c  d  e  f  g  h  i	  -> ( This row is -load(col: x-1) )
+			*
+			* index 0 and index 31 are missed because of shift (x+1) & (x-1) respectivly -> 30 elements
+			*/
+			
+			// Load Row 1
+			__m256i row1_shift1 = _mm256_loadu_si256((__m256i*) & filt[row-1][col + 1]);
+			__m256i row1_main = _mm256_loadu_si256((__m256i*) & filt[row-1][col]);
+			__m256i row1_shiftneg1 = _mm256_loadu_si256((__m256i*) & filt[row-1][col - 1]);
+
+			// Load Row 2
+			__m256i row2_shift1 = _mm256_loadu_si256((__m256i*) & filt[row][col + 1]);
+			__m256i row2_main = _mm256_loadu_si256((__m256i*) & filt[row][col]);
+			__m256i row2_shiftneg1 = _mm256_loadu_si256((__m256i*) & filt[row][col - 1]);
+
+			// Load Row 3
+			__m256i row3_shift1 = _mm256_loadu_si256((__m256i*) & filt[row+1][col + 1]);
+			__m256i row3_main = _mm256_loadu_si256((__m256i*) & filt[row+1][col]);
+			__m256i row3_shiftneg1 = _mm256_loadu_si256((__m256i*) & filt[row+1][col - 1]);
+
+			/*
+			// --- Gx ---
+			 
+			// Row 1 [-1, 0, -1] A
+			__m256i Row1_shift1_x_1 = row1_shift1;
+			__m256i Row1_shiftneg1_x_neg1 = row1_shiftneg1 * -1;
+
+			__m256i Gx_A = Row1_shift1_x_1 + Row1_shiftneg1_x_neg1;
+
+
+			// Row 2 [-2, 0, 2] B
+			__m256i Row2_shift1_x_2 = row2_shift1 * 2;
+			__m256i Row2_shiftneg1_x_ = row2_shiftneg1 * -2;
+
+			__m256i Gx_B = Row2_shift1_x_2 + Row2_shiftneg1_x_;
+
+
+			// Row 3 [-1, 0, -1] C
+			__m256i Row3_shift1_x_1 = row3_shift1;
+			__m256i Row3_shiftneg1_x_neg1 = row3_shiftneg1 * -1;
+
+			__m256i Gx_C = Row3_shift1_x_1 + Row3_shiftneg1_x_neg1;
+
+
+			__m256i Gx = Gx_A + Gx_B + Gx_C;
+
+
+			// --- Gy ---
+
+			// Row 1 [-1, -2, -1] A
+			__m256i Row1_shift1_x_neg1 = row1_shift1 * -1;
+			__m256i Row1_main_x_neg2 = row1_main * -2;
+			__m256i Row1_shiftneg1_x_neg1 = row1_shiftneg1 * -1;
+
+			__m256i Gy_A = Row1_shift1_x_neg1 + Row1_main_x_neg2 + Row1_shiftneg1_x_neg1;
+
+
+			// Row 3 [1, 2, 1] C
+			__m256i Row3_shift1_x_1 = row3_shift1;
+			__m256i Row3_main_x_2 = row3_main * 2;
+			__m256i Row3_shiftneg1_x_1 = row3_shiftneg1 * 1;
+
+			__m256i Gy_C = Row3_shift1_x_1 + Row3_main_x_2 + Row3_shiftneg1_x_1;
+
+
+			__m256i Gy = Gy_A + Gy_C;
+			*/
+
+
+
+		}
+	}
+}
+
+
+void New() {
+	int i, j;
+	unsigned int row, col;
+
+	int newAngle;
+
+	// [-1, 0, 1]
+	// [-2, 0, 2]
+	// [-1, 0, 1]
+	//__m256i GxMask1 = _mm256_set_epi8(-1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	//__m256i GxMask2 = _mm256_set_epi8(-2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	//__m256i GxMask3 = GxMask1;
+
+	// unsigned representation of signed
+	__m256i GxMask1 = _mm256_set_epi8(127, 128, 129, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128);
+	__m256i GxMask2 = _mm256_set_epi8(126, 128, 130, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128);
+	__m256i GxMask3 = GxMask1;
+
+
+	// [-1,-2,-1]
+	// [ 0, 0, 0]
+	// [ 1, 2, 1]
+	//__m256i GyMask1 = _mm256_set_epi8(-1, -2, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	//__m256i GyMask3 = _mm256_set_epi8(1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+	__m256i GyMask1 = _mm256_set_epi8(127, 126, 127, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128);
+	__m256i GyMask3 = _mm256_set_epi8(129, 130, 129, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128);
+
+
+
+	for (row = 1; row < N - 1; row++) {
+		for (col = 1; col < M - 1; col++) {
+
+			// Load Row 1
+			__m256i row1 = _mm256_loadu_si256((__m256i*) & filt[row - 1][col]);
+			// Load Row 2
+			__m256i row2 = _mm256_loadu_si256((__m256i*) & filt[row][col]);
+			// Load Row 3
+			__m256i row3 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col]);
+
+
+			// --- Gx ---
+			
+			// Row 1
+			__m256i A_gx = _mm256_maddubs_epi16(row1, GxMask1);
+			__m256i hadd1_gx = _mm256_hadd_epi16(A_gx, A_gx);
+
+			// Row 2
+			__m256i B_gx = _mm256_maddubs_epi16(row2, GxMask2);
+			__m256i hadd2_gx = _mm256_hadd_epi16(B_gx, B_gx);
+
+			// Row 3
+			__m256i C_gx = _mm256_maddubs_epi16(row3, GxMask3);
+			__m256i hadd3_gx = _mm256_hadd_epi16(C_gx, C_gx);
+
+
+			// Final
+			__m256i Gx = _mm256_add_epi16(hadd1_gx, hadd2_gx);
+			Gx = _mm256_add_epi16(Gx, hadd3_gx);
+
+
+
+			// --- Gy ---
+			
+			// Row 1
+			__m256i A_gy = _mm256_maddubs_epi16(row1, GyMask1);
+			__m256i hadd1_gy = _mm256_hadd_epi16(A_gy, A_gy);
+
+			// Row 3
+			__m256i C_gy = _mm256_maddubs_epi16(row3, GyMask3);
+			__m256i hadd3_gy = _mm256_hadd_epi16(C_gy, C_gy);
+
+
+
+			// Final
+			__m256i Gy = _mm256_add_epi16(hadd1_gy, hadd3_gy);
+
+
+
+
+
+			int singleGx = _mm256_extract_epi16(Gx, 0);
+			int singleGy = _mm256_extract_epi16(Gy, 0);
+
+			singleGx -= 128;
+			singleGy -= 128;
+
+			
+			// Calculate gradient magnitude
+			gradient[row][col] = (unsigned char)(sqrt(singleGx * singleGx + singleGy * singleGy));
+
+			// Calculate edge direction
+			float thisAngle = (((atan2(singleGx, singleGy)) / 3.14159) * 180.0);
+
+
+			// Convert angle to closest direction
+			if (((thisAngle >= -22.5) && (thisAngle <= 22.5)) || (thisAngle >= 157.5) || (thisAngle <= -157.5))
+				newAngle = 0;
+			else if (((thisAngle > 22.5) && (thisAngle < 67.5)) || ((thisAngle > -157.5) && (thisAngle < -112.5)))
+				newAngle = 45;
+			else if (((thisAngle >= 67.5) && (thisAngle <= 112.5)) || ((thisAngle >= -112.5) && (thisAngle <= -67.5)))
+				newAngle = 90;
+			else if (((thisAngle > 112.5) && (thisAngle < 157.5)) || ((thisAngle > -67.5) && (thisAngle < -22.5)))
+				newAngle = 135;
+
+			edgeDir[row][col] = newAngle;
+			
+			
+
+
 
 		}
 	}
@@ -711,12 +798,12 @@ int image_detection() {
 
 
 	//Sobel();
-	//Sobel_AVX();
-	Sobel_Experiment();
 	
-	//Sobel_seperable();
 	//Sobel_Original();
-	//Sobel_Optimized();
+
+	//Shifter();
+
+	New();
 
 
 	/* write gradient to image*/
