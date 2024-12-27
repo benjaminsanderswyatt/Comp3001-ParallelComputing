@@ -465,9 +465,166 @@ void Working() {
 	}
 }
 
+float atan2_approx(float y, float x) {
+	float abs_y = fabs(y) + 1e-10;
+	float r, angle;
+	if (x >= 0) {
+		r = (x - abs_y) / (x + abs_y);
+		angle = 0.78539816f;
+	}
+	else {
+		r = (x + abs_y) / (abs_y - x);
+		angle = 2.35619449f;
+	}
+	angle += (0.1963f * r * r - 0.9817f) * r;
+	return (y < 0) ? -angle : angle;
+}
+
+
+void Sobel() {
+	int i, j;
+	int row, col;
+
+	int newAngle;
+
+	// [-1, 0, 1]
+	// [-2, 0, 2]
+	// [-1, 0, 1]
+	printf("\n--- GxMask ---\n");
+
+	__m256i GxMask13 = _mm256_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, -1, 0, 1, 0, -1);
+	__m256i GxMask2 = _mm256_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, -2, 0, 2, 0, -2);
+
+	print_m256i_8(GxMask13);
+	print_m256i_8(GxMask2);
 
 
 
+
+	// [-1,-2,-1]
+	// [ 0, 0, 0]
+	// [ 1, 2, 1]
+	printf("\n--- GyMask ---\n");
+
+	__m256i GyMask1 = _mm256_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -2, -1, 0, -1, -2, -1);
+	__m256i GyMask3 = _mm256_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 1, 2, 1);
+
+	print_m256i_8(GyMask1);
+	print_m256i_8(GyMask3);
+
+
+	printf("\n--- Loop ---\n");
+	//#pragma omp parallel for
+	for (row = 1; row < N - 1; row++) {
+		for (col = 1; col < M - 1; col++) {
+
+
+			// Load Row 1
+			__m256i row1 = _mm256_loadu_si256((__m256i*) & filt[row - 1][col - 1]);
+			// Load Row 2
+			__m256i row2 = _mm256_loadu_si256((__m256i*) & filt[row][col - 1]);
+			// Load Row 3
+			__m256i row3 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col - 1]);
+
+			print_loop_8(row1, row, col, "row1");
+			print_loop_8(row2, row, col, "row2");
+			print_loop_8(row3, row, col, "row3");
+
+
+
+			// --- Gx ---
+
+			// Row 1
+			__m256i A_gx = _mm256_maddubs_epi16(row1, GxMask13);
+			print_loop_16(A_gx, row, col, "A_gx");
+
+			__m256i hadd1_gx = _mm256_hadd_epi16(A_gx, A_gx);
+			print_loop_16(hadd1_gx, row, col, "hadd1_gx");
+
+			// Row 2
+			__m256i B_gx = _mm256_maddubs_epi16(row2, GxMask2);
+			print_loop_16(B_gx, row, col, "B_gx");
+
+			__m256i hadd2_gx = _mm256_hadd_epi16(B_gx, B_gx);
+			print_loop_16(hadd2_gx, row, col, "hadd2_gx");
+
+			// Row 3
+			__m256i C_gx = _mm256_maddubs_epi16(row3, GxMask13);
+			print_loop_16(C_gx, row, col, "C_gx");
+
+			__m256i hadd3_gx = _mm256_hadd_epi16(C_gx, C_gx);
+			print_loop_16(hadd3_gx, row, col, "hadd3_gx");
+
+
+			// Final
+			__m256i Gx = _mm256_add_epi16(hadd1_gx, hadd2_gx);
+			print_loop_16(Gx, row, col, "Gx");
+
+			Gx = _mm256_add_epi16(Gx, hadd3_gx);
+			print_loop_16(Gx, row, col, "Gx");
+
+
+			// --- Gy ---
+
+			// Row 1
+			__m256i A_gy = _mm256_maddubs_epi16(row1, GyMask1);
+			print_loop_16(A_gy, row, col, "A_gy");
+
+			__m256i hadd1_gy = _mm256_hadd_epi16(A_gy, A_gy);
+			print_loop_16(hadd1_gy, row, col, "hadd1_gy");
+
+			// Row 3
+			__m256i C_gy = _mm256_maddubs_epi16(row3, GyMask3);
+			print_loop_16(C_gy, row, col, "C_gy");
+
+			__m256i hadd3_gy = _mm256_hadd_epi16(C_gy, C_gy);
+			print_loop_16(hadd3_gy, row, col, "hadd3_gy");
+
+
+			// Final
+			__m256i Gy = _mm256_add_epi16(hadd1_gy, hadd3_gy);
+			print_loop_16(Gy, row, col, "Gy");
+
+
+
+
+			int singleGx = (signed short)_mm256_extract_epi16(Gx, 0);
+			int singleGy = (signed short)_mm256_extract_epi16(Gy, 0);
+
+			print_single(singleGx, row, col, "singleGx");
+			print_single(singleGy, row, col, "singleGy");
+
+
+			// Calculate gradient magnitude
+			gradient[row][col] = (unsigned char)(sqrt(singleGx * singleGx + singleGy * singleGy));
+
+			print_single(gradient[row][col], row, col, "gradient[row][col]");
+
+
+
+			// Calculate edge direction
+			float thisAngle = (((atan2(singleGx, singleGy)) / 3.14159) * 180.0);
+
+
+			// Convert angle to closest direction
+			if (((thisAngle >= -22.5) && (thisAngle <= 22.5)) || (thisAngle >= 157.5) || (thisAngle <= -157.5))
+				newAngle = 0;
+			else if (((thisAngle > 22.5) && (thisAngle < 67.5)) || ((thisAngle > -157.5) && (thisAngle < -112.5)))
+				newAngle = 45;
+			else if (((thisAngle >= 67.5) && (thisAngle <= 112.5)) || ((thisAngle >= -112.5) && (thisAngle <= -67.5)))
+				newAngle = 90;
+			else if (((thisAngle > 112.5) && (thisAngle < 157.5)) || ((thisAngle > -67.5) && (thisAngle < -22.5)))
+				newAngle = 135;
+
+			edgeDir[row][col] = newAngle;
+
+
+
+
+
+		}
+	}
+}
 
 
 
@@ -531,13 +688,13 @@ int image_detection() {
 	write_image(OUT_NAME1, print);
 
 
-	//Sobel();
+	Sobel();
 	
 	//Sobel_Original();
 
 	//Shifter();
 
-	New();
+	//New();
 
 
 	/* write gradient to image*/
