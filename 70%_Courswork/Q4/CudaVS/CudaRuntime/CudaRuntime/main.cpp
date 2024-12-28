@@ -2,6 +2,7 @@
 #include "canny.h"
 void Sobel_Original();  // Remove
 void Sobel();
+unsigned char(*storeEdgeDir())[M];
 void benchmark();   // Remove
 void compare();   // Remove
 
@@ -76,6 +77,7 @@ bool different(unsigned char **first_image, unsigned char **second_image) {
     return false;
 }
 
+
 void compare() {
     printf("\nComparing result to the correct image\n");
 
@@ -91,7 +93,7 @@ void compare() {
     }
 
 
-    // Read the two images
+    // Read the two edgeDir
     read_image("out2.pgm", out2_image);
     read_image("Correct.pgm", correct_image);
 
@@ -103,6 +105,23 @@ void compare() {
     else {
         printf("\nINCORRECT Soble\n\n");
     }
+
+
+
+    // Read the two images
+    read_image("EdgeDir", out2_image);
+    read_image("EdgeDirOutPut", correct_image); // Correct file
+
+
+    // Are the images different
+    if (!different(out2_image, correct_image)) {
+        printf("\nCORRECT Sobel edgeDir\n\n");
+    }
+    else {
+        printf("\nINCORRECT Soble edgeDir\n\n");
+    }
+
+
 
 
 

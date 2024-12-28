@@ -262,6 +262,31 @@ void print_m256i_8(__m256i vec) {
 	printf("\n");
 }
 
+void print_m128i_8(__m128i vec) {
+	// Create an array to hold the elements of the vector
+	int8_t elements[16]; // Adjust size depending on data type
+	_mm_storeu_si128((__m128i*)elements, vec); // Store the vector into the array
+
+	printf("Vector elements: ");
+	for (int i = 0; i < 16; i++) { // Adjust loop limit depending on the data type
+		printf("%d ", elements[i]); // Use %d for signed integers
+	}
+	printf("\n");
+}
+
+
+void print_m128i_16(__m128i vec) {
+	// Create an array to hold the elements of the vector
+	int16_t elements[8]; // Adjust size depending on data type
+	_mm_storeu_si128((__m128i*)elements, vec); // Store the vector into the array
+
+	printf("Vector elements: ");
+	for (int i = 0; i < 8; i++) { // Adjust loop limit depending on the data type
+		printf("%d ", elements[i]); // Use %d for signed integers
+	}
+	printf("\n");
+}
+
 void print_m256i_16(__m256i vec) {
 	// Create an array to hold the elements of the vector
 	int16_t elements[16]; // Adjust size depending on data type
@@ -288,13 +313,31 @@ void print_m256i_32(__m256i vec) {
 
 
 int checkRowAt = 1;
-int checkColAt = 3;
+int checkColAt = 1;
 
 void print_loop_8(__m256i vec, int row, int col, char* hi) {
 	if (row == checkRowAt && col == checkColAt) {
 		printf(hi);
 		printf("\n");
 		print_m256i_8(vec);
+		printf("\n");
+	}
+}
+
+void print_loop_8_128(__m128i vec, int row, int col, char* hi) {
+	if (row == checkRowAt && col == checkColAt) {
+		printf(hi);
+		printf("\n");
+		print_m128i_8(vec);
+		printf("\n");
+	}
+}
+
+void print_loop_16_128(__m128i vec, int row, int col, char* hi) {
+	if (row == checkRowAt && col == checkColAt) {
+		printf(hi);
+		printf("\n");
+		print_m128i_16(vec);
 		printf("\n");
 	}
 }
@@ -492,8 +535,8 @@ void Sobel() {
 	// [-1, 0, 1]
 	printf("\n--- GxMask ---\n");
 
-	__m256i GxMask13 = _mm256_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, -1, 0, 1, 0, -1);
-	__m256i GxMask2 = _mm256_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, -2, 0, 2, 0, -2);
+	__m256i GxMask13 = _mm256_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, -1);
+	__m256i GxMask2 = _mm256_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, -2);
 
 	print_m256i_8(GxMask13);
 	print_m256i_8(GxMask2);
@@ -506,8 +549,8 @@ void Sobel() {
 	// [ 1, 2, 1]
 	printf("\n--- GyMask ---\n");
 
-	__m256i GyMask1 = _mm256_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -2, -1, 0, -1, -2, -1);
-	__m256i GyMask3 = _mm256_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 1, 2, 1);
+	__m256i GyMask1 = _mm256_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -2, -1);
+	__m256i GyMask3 = _mm256_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1);
 
 	print_m256i_8(GyMask1);
 	print_m256i_8(GyMask3);
@@ -629,6 +672,347 @@ void Sobel() {
 
 
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define TILE 32
+
+
+void NewWorking() {
+	int i, j;
+	int row, col;
+	__m128i low, high;
+
+	int newAngle;
+
+	// [-1, 0, 1]
+	// [-2, 0, 2]
+	// [-1, 0, 1]
+	printf("\n--- GxMask ---\n");
+
+	__m256i GxMask13 = _mm256_set_epi8(0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1);
+	__m256i GxMask2 = _mm256_set_epi8(0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2);
+
+	
+	// [-1,-2,-1]
+	// [ 0, 0, 0]
+	// [ 1, 2, 1]
+	printf("\n--- GyMask ---\n");
+
+	__m256i GyMask1 = _mm256_set_epi8(0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1);
+	__m256i GyMask3 = _mm256_set_epi8(0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1);
+
+	int Z = 1024;
+	int Y = 1024;
+	for (int r = 1; r < Z - 1; r += TILE) {
+		for (col = 1; col < Y - 1; col+=32) {
+			for (int row = r; row < MIN(Z - 1, r + TILE); row++) {
+				for (int inner = 0; inner < 4; inner++) {
+
+					// Each operation calculates for many columns
+					// e.g. when inner = 0 & col = 1. columns: 1, 5, 9, 13, 17, 21, 25, 29 are calculated
+					// Meaning for each complete inner loop a 32 element row is calculated
+
+					//printf("r: %d, col: %d, row: %d, inner: %d \n", r, col, row, inner);
+
+					// Load Row 1
+					__m256i row1 = _mm256_loadu_si256((__m256i*) & filt[row - 1][col - 1 + inner]);
+					// Load Row 2
+					__m256i row2 = _mm256_loadu_si256((__m256i*) & filt[row][col - 1 + inner]);
+					// Load Row 3
+					__m256i row3 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col - 1 + inner]);
+
+
+					// --- Gx ---
+
+					// Row 1
+					__m256i A_gx = _mm256_maddubs_epi16(row1, GxMask13);
+					//__m256i hadd1_gx = _mm256_hadd_epi16(A_gx, A_gx);
+					low = _mm256_extractf128_si256(A_gx, 0);
+					high = _mm256_extractf128_si256(A_gx, 1);
+					__m128i hadd1_gx = _mm_hadd_epi16(low, high);
+
+					// Row 2
+					__m256i B_gx = _mm256_maddubs_epi16(row2, GxMask2);
+					//__m256i hadd2_gx = _mm256_hadd_epi16(B_gx, B_gx);
+					low = _mm256_extractf128_si256(B_gx, 0);
+					high = _mm256_extractf128_si256(B_gx, 1);
+					__m128i hadd2_gx = _mm_hadd_epi16(low, high);
+
+					// Row 3
+					__m256i C_gx = _mm256_maddubs_epi16(row3, GxMask13);
+					//__m256i hadd3_gx = _mm256_hadd_epi16(C_gx, C_gx);
+					low = _mm256_extractf128_si256(C_gx, 0);
+					high = _mm256_extractf128_si256(C_gx, 1);
+					__m128i hadd3_gx = _mm_hadd_epi16(low, high);
+
+
+					// Final
+					__m128i Gx = _mm_add_epi16(hadd1_gx, hadd2_gx);
+					Gx = _mm_add_epi16(Gx, hadd3_gx);
+
+
+					// --- Gy ---
+
+					// Row 1
+					__m256i A_gy = _mm256_maddubs_epi16(row1, GyMask1);
+					//__m256i hadd1_gy = _mm256_hadd_epi16(A_gy, A_gy);
+					low = _mm256_extractf128_si256(A_gy, 0);
+					high = _mm256_extractf128_si256(A_gy, 1);
+					__m128i hadd1_gy = _mm_hadd_epi16(low, high);
+
+					// Row 3
+					__m256i C_gy = _mm256_maddubs_epi16(row3, GyMask3);
+					//__m256i hadd3_gy = _mm256_hadd_epi16(C_gy, C_gy);
+					low = _mm256_extractf128_si256(C_gy, 0);
+					high = _mm256_extractf128_si256(C_gy, 1);
+					__m128i hadd3_gy = _mm_hadd_epi16(low, high);
+					
+
+					// Final
+					__m128i Gy = _mm_add_epi16(hadd1_gy, hadd3_gy);
+
+
+					signed short GxArray[8];
+					_mm_storeu_si128((__m128i*)GxArray, Gx);
+					
+					signed short GyArray[8];
+					_mm_storeu_si128((__m128i*)GyArray, Gy);
+
+
+					// Calculate gradient magnitude
+					gradient[row][col + inner] = (unsigned char)(sqrt(GxArray[0] * GxArray[0] + GyArray[0] * GyArray[0]));
+					gradient[row][col + 4 + inner] = (unsigned char)(sqrt(GxArray[1] * GxArray[1] + GyArray[1] * GyArray[1]));
+					gradient[row][col + 8 + inner] = (unsigned char)(sqrt(GxArray[2] * GxArray[2] + GyArray[2] * GyArray[2]));
+					gradient[row][col + 12 + inner] = (unsigned char)(sqrt(GxArray[3] * GxArray[3] + GyArray[3] * GyArray[3]));
+					gradient[row][col + 16 + inner] = (unsigned char)(sqrt(GxArray[4] * GxArray[4] + GyArray[4] * GyArray[4]));
+					gradient[row][col + 20 + inner] = (unsigned char)(sqrt(GxArray[5] * GxArray[5] + GyArray[5] * GyArray[5]));
+					gradient[row][col + 24 + inner] = (unsigned char)(sqrt(GxArray[6] * GxArray[6] + GyArray[6] * GyArray[6]));
+					gradient[row][col + 28 + inner] = (unsigned char)(sqrt(GxArray[7] * GxArray[7] + GyArray[7] * GyArray[7]));
+					
+
+
+					for (int k = 0; k < 8; k++) {
+						print_single(k, row, col, "k");
+
+						// Calculate edge direction
+						float thisAngle = (((atan2(GxArray[k], GyArray[k])) / 3.14159) * 180.0);
+
+
+						// Convert angle to closest direction
+						if (((thisAngle >= -22.5) && (thisAngle <= 22.5)) || (thisAngle >= 157.5) || (thisAngle <= -157.5))
+							newAngle = 0;
+						else if (((thisAngle > 22.5) && (thisAngle < 67.5)) || ((thisAngle > -157.5) && (thisAngle < -112.5)))
+							newAngle = 45;
+						else if (((thisAngle >= 67.5) && (thisAngle <= 112.5)) || ((thisAngle >= -112.5) && (thisAngle <= -67.5)))
+							newAngle = 90;
+						else if (((thisAngle > 112.5) && (thisAngle < 157.5)) || ((thisAngle > -67.5) && (thisAngle < -22.5)))
+							newAngle = 135;
+
+						edgeDir[row][col + inner + k*4] = newAngle;
+					}
+					
+
+					
+				}
+			}
+		}
+	}
+}
+
+
+
+
+
+
+
+
+int roundToNearestMultiple(int number, int multiple) {
+	// Calculate the remainder
+	int remainder = number % multiple;
+
+	// If the remainder is less than half of the multiple, round down, otherwise round up
+	if (remainder < multiple / 2) {
+		return number - remainder; // Round down
+	}
+	else {
+		return number + (multiple - remainder); // Round up
+	}
+}
+
+int roundToClosestDirection(double angle) {
+	// Normalize the angle to be between -180 and 180
+	if (angle > 180) {
+		angle -= 360;
+	}
+	else if (angle < -180) {
+		angle += 360;
+	}
+
+	// Round to the closest multiple of 45
+	int roundedAngle = static_cast<int>((angle + 22.5) / 45) * 45;
+
+	// Handle edge case where rounding might produce 180, which should be mapped to 0
+	if (roundedAngle == 180) {
+		roundedAngle = 0;
+	}
+
+	return roundedAngle;
+}
+
+
+void Testing() {
+	int i, j;
+	int row, col;
+	__m128i low, high;
+
+	int newAngle;
+
+	// [-1, 0, 1]
+	// [-2, 0, 2]
+	// [-1, 0, 1]
+	printf("\n--- GxMask ---\n");
+
+	__m256i GxMask13 = _mm256_set_epi8(0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1);
+	__m256i GxMask2 = _mm256_set_epi8(0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2);
+
+
+	// [-1,-2,-1]
+	// [ 0, 0, 0]
+	// [ 1, 2, 1]
+	printf("\n--- GyMask ---\n");
+
+	__m256i GyMask1 = _mm256_set_epi8(0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1);
+	__m256i GyMask3 = _mm256_set_epi8(0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1);
+
+	int Z = 1024;
+	int Y = 1024;
+	for (int r = 1; r < Z - 1; r += TILE) {
+		for (col = 1; col < Y - 1; col += 32) {
+			for (int row = r; row < MIN(Z - 1, r + TILE); row++) {
+				for (int inner = 0; inner < 4; inner++) {
+
+					// Each operation calculates for many columns
+					// e.g. when inner = 0 & col = 1. columns: 1, 5, 9, 13, 17, 21, 25, 29 are calculated
+					// Meaning for each complete inner loop a 32 element row is calculated
+
+					//printf("r: %d, col: %d, row: %d, inner: %d \n", r, col, row, inner);
+
+					// Load Row 1
+					__m256i row1 = _mm256_loadu_si256((__m256i*) & filt[row - 1][col - 1 + inner]);
+					// Load Row 2
+					__m256i row2 = _mm256_loadu_si256((__m256i*) & filt[row][col - 1 + inner]);
+					// Load Row 3
+					__m256i row3 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col - 1 + inner]);
+
+
+					// --- Gx ---
+
+					// Row 1
+					__m256i A_gx = _mm256_maddubs_epi16(row1, GxMask13);
+					//__m256i hadd1_gx = _mm256_hadd_epi16(A_gx, A_gx);
+					low = _mm256_extractf128_si256(A_gx, 0);
+					high = _mm256_extractf128_si256(A_gx, 1);
+					__m128i hadd1_gx = _mm_hadd_epi16(low, high);
+
+					// Row 2
+					__m256i B_gx = _mm256_maddubs_epi16(row2, GxMask2);
+					//__m256i hadd2_gx = _mm256_hadd_epi16(B_gx, B_gx);
+					low = _mm256_extractf128_si256(B_gx, 0);
+					high = _mm256_extractf128_si256(B_gx, 1);
+					__m128i hadd2_gx = _mm_hadd_epi16(low, high);
+
+					// Row 3
+					__m256i C_gx = _mm256_maddubs_epi16(row3, GxMask13);
+					//__m256i hadd3_gx = _mm256_hadd_epi16(C_gx, C_gx);
+					low = _mm256_extractf128_si256(C_gx, 0);
+					high = _mm256_extractf128_si256(C_gx, 1);
+					__m128i hadd3_gx = _mm_hadd_epi16(low, high);
+
+
+					// Final
+					__m128i Gx = _mm_add_epi16(hadd1_gx, hadd2_gx);
+					Gx = _mm_add_epi16(Gx, hadd3_gx);
+
+
+					// --- Gy ---
+
+					// Row 1
+					__m256i A_gy = _mm256_maddubs_epi16(row1, GyMask1);
+					//__m256i hadd1_gy = _mm256_hadd_epi16(A_gy, A_gy);
+					low = _mm256_extractf128_si256(A_gy, 0);
+					high = _mm256_extractf128_si256(A_gy, 1);
+					__m128i hadd1_gy = _mm_hadd_epi16(low, high);
+
+					// Row 3
+					__m256i C_gy = _mm256_maddubs_epi16(row3, GyMask3);
+					//__m256i hadd3_gy = _mm256_hadd_epi16(C_gy, C_gy);
+					low = _mm256_extractf128_si256(C_gy, 0);
+					high = _mm256_extractf128_si256(C_gy, 1);
+					__m128i hadd3_gy = _mm_hadd_epi16(low, high);
+
+
+					// Final
+					__m128i Gy = _mm_add_epi16(hadd1_gy, hadd3_gy);
+
+
+					signed short GxArray[8];
+					_mm_storeu_si128((__m128i*)GxArray, Gx);
+
+					signed short GyArray[8];
+					_mm_storeu_si128((__m128i*)GyArray, Gy);
+
+
+					// Calculate gradient magnitude
+					gradient[row][col + inner] = (unsigned char)(sqrt(GxArray[0] * GxArray[0] + GyArray[0] * GyArray[0]));
+					gradient[row][col + 4 + inner] = (unsigned char)(sqrt(GxArray[1] * GxArray[1] + GyArray[1] * GyArray[1]));
+					gradient[row][col + 8 + inner] = (unsigned char)(sqrt(GxArray[2] * GxArray[2] + GyArray[2] * GyArray[2]));
+					gradient[row][col + 12 + inner] = (unsigned char)(sqrt(GxArray[3] * GxArray[3] + GyArray[3] * GyArray[3]));
+					gradient[row][col + 16 + inner] = (unsigned char)(sqrt(GxArray[4] * GxArray[4] + GyArray[4] * GyArray[4]));
+					gradient[row][col + 20 + inner] = (unsigned char)(sqrt(GxArray[5] * GxArray[5] + GyArray[5] * GyArray[5]));
+					gradient[row][col + 24 + inner] = (unsigned char)(sqrt(GxArray[6] * GxArray[6] + GyArray[6] * GyArray[6]));
+					gradient[row][col + 28 + inner] = (unsigned char)(sqrt(GxArray[7] * GxArray[7] + GyArray[7] * GyArray[7]));
+
+
+
+					for (int k = 0; k < 8; k++) {
+						
+						// Calculate edge direction
+						float thisAngle = (((atan2(GxArray[k], GyArray[k])) / 3.14159) * 180.0);
+
+						/*
+						// Convert angle to closest direction
+						if (((thisAngle >= -22.5) && (thisAngle <= 22.5)) || (thisAngle >= 157.5) || (thisAngle <= -157.5))
+							newAngle = 0;
+						else if (((thisAngle > 22.5) && (thisAngle < 67.5)) || ((thisAngle > -157.5) && (thisAngle < -112.5)))
+							newAngle = 45;
+						else if (((thisAngle >= 67.5) && (thisAngle <= 112.5)) || ((thisAngle >= -112.5) && (thisAngle <= -67.5)))
+							newAngle = 90;
+						else if (((thisAngle > 112.5) && (thisAngle < 157.5)) || ((thisAngle > -67.5) && (thisAngle < -22.5)))
+							newAngle = 135;
+						*/
+
+						
+						
+						// Convert angle to closest direction
+						//newAngle = roundToNearestMultiple(thisAngle, 45);
+
+
+
+						int newAngle = roundToClosestDirection(thisAngle);
+
+
+
+
+
+
+
+						edgeDir[row][col + inner + k * 4] = newAngle;
+						
+					}
+				}
+			}
+		}
+	}
+}
 
 
 
@@ -688,9 +1072,20 @@ int image_detection() {
 	write_image(OUT_NAME1, print);
 
 
-	Sobel();
-	
+	//Sobel();
+	//NewWorking();
+	Testing();
+
 	//Sobel_Original();
+
+	for (i = 0; i < N; i++)
+		for (j = 0; j < M; j++)
+			print[i][j] = edgeDir[i][j];
+
+	write_image("EdgeDir", print);
+
+
+	
 
 	//Shifter();
 
