@@ -838,25 +838,9 @@ int roundToNearestMultiple(int number, int multiple) {
 	}
 }
 
-int roundToClosestDirection(double angle) {
-	// Normalize the angle to be between -180 and 180
-	if (angle > 180) {
-		angle -= 360;
-	}
-	else if (angle < -180) {
-		angle += 360;
-	}
 
-	// Round to the closest multiple of 45
-	int roundedAngle = static_cast<int>((angle + 22.5) / 45) * 45;
 
-	// Handle edge case where rounding might produce 180, which should be mapped to 0
-	if (roundedAngle == 180) {
-		roundedAngle = 0;
-	}
 
-	return roundedAngle;
-}
 
 
 void Testing() {
@@ -883,11 +867,10 @@ void Testing() {
 	__m256i GyMask1 = _mm256_set_epi8(0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1);
 	__m256i GyMask3 = _mm256_set_epi8(0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1);
 
-	int Z = 1024;
-	int Y = 1024;
-	for (int r = 1; r < Z - 1; r += TILE) {
-		for (col = 1; col < Y - 1; col += 32) {
-			for (int row = r; row < MIN(Z - 1, r + TILE); row++) {
+	#pragma omp parallel for
+	for (int r = 1; r < N - 1; r += TILE) {
+		for (col = 1; col < M - 1; col += 32) {
+			for (int row = r; row < MIN(N - 1, r + TILE); row++) {
 				for (int inner = 0; inner < 4; inner++) {
 
 					// Each operation calculates for many columns
@@ -974,11 +957,10 @@ void Testing() {
 
 
 					for (int k = 0; k < 8; k++) {
-						
+
 						// Calculate edge direction
 						float thisAngle = (((atan2(GxArray[k], GyArray[k])) / 3.14159) * 180.0);
 
-						/*
 						// Convert angle to closest direction
 						if (((thisAngle >= -22.5) && (thisAngle <= 22.5)) || (thisAngle >= 157.5) || (thisAngle <= -157.5))
 							newAngle = 0;
@@ -988,34 +970,15 @@ void Testing() {
 							newAngle = 90;
 						else if (((thisAngle > 112.5) && (thisAngle < 157.5)) || ((thisAngle > -67.5) && (thisAngle < -22.5)))
 							newAngle = 135;
-						*/
-
-						
-						
-						// Convert angle to closest direction
-						//newAngle = roundToNearestMultiple(thisAngle, 45);
-
-
-
-						int newAngle = roundToClosestDirection(thisAngle);
-
-
-
-
-
-
 
 						edgeDir[row][col + inner + k * 4] = newAngle;
-						
+
 					}
 				}
 			}
 		}
 	}
 }
-
-
-
 
 
 
