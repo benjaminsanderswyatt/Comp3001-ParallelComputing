@@ -719,7 +719,8 @@ void NewWorking() {
 					__m256i row2 = _mm256_loadu_si256((__m256i*) & filt[row][col - 1 + inner]);
 					// Load Row 3
 					__m256i row3 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col - 1 + inner]);
-
+					
+					
 
 					// --- Gx ---
 
@@ -791,8 +792,6 @@ void NewWorking() {
 
 
 					for (int k = 0; k < 8; k++) {
-						print_single(k, row, col, "k");
-
 						// Calculate edge direction
 						float thisAngle = (((atan2(GxArray[k], GyArray[k])) / 3.14159) * 180.0);
 
@@ -1036,8 +1035,8 @@ int image_detection() {
 
 
 	//Sobel();
-	//NewWorking();
-	Testing();
+	NewWorking();
+	//Testing();
 
 	//Sobel_Original();
 
