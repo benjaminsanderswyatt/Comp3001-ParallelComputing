@@ -7,6 +7,7 @@ signed char GxMask[3][3], GyMask[3][3];
 
 
 
+
 void GaussianBlur() {
 
 	int i, j;
@@ -1388,553 +1389,183 @@ void NewestWorking() {
 }
 
 
-void Working_Reg_Block() {
-	int r, row, col, inner;
 
 
-	// Gx
-	// [-1, 0, 1]
-	// [-2, 0, 2]
-	// [-1, 0, 1]
-	const __m256i GxMask13 = _mm256_set_epi8(0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1); // 1 & 3
-	const __m256i GxMask2 = _mm256_set_epi8(0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2);
-
-	// Gy
-	// [-1,-2,-1]
-	// [ 0, 0, 0] zero isnt needed
-	// [ 1, 2, 1]
-	const __m256i GyMask1 = _mm256_set_epi8(0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1);
-	const __m256i GyMask3 = _mm256_set_epi8(0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1);
-
-	const __m256i zero = _mm256_setzero_si256();
-	const __m256 pi_4 = _mm256_set1_ps(4.0f / 3.14159265359f);  // 4/pi radians = 45 degrees
-	const __m256 pi = _mm256_set1_ps(3.14159265359f);
-	const __m256 degrees_45 = _mm256_set1_ps(45.0f);
-	const __m256 zero_float = _mm256_setzero_ps();
-	const __m256 degrees_360 = _mm256_set1_ps(360.0f);
-	const __m256 degrees_180 = _mm256_set1_ps(180.0f);
-
-
-	// Each operation calculates for many columns
-	// e.g. when inner = 0 & col = 1. columns: 1, 5, 9, 13, 17, 21, 25, 29 are calculated
-	// Meaning a row of size 32 is calculated
-
-
-
-	//#pragma omp parallel for
-	for (r = 1; r < N - 1; r += TILE) {
-		for (col = 1; col < M - 1; col += 32) {
-			for (row = r; row < MIN(N - 1, r + TILE); row+=2) { // Unroll by 2
-
-				for (inner = 0; inner < 4; inner++) {
-
-					
-					// ------------ Load Rows ------------
-					
-					// For 0
-					__m256i row1_0 = _mm256_loadu_si256((__m256i*) & filt[row - 1][col - 1 + inner]);
-					__m256i row2_0 = _mm256_loadu_si256((__m256i*) & filt[row][col - 1 + inner]);
-					__m256i row3_0 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col - 1 + inner]);
-
-					// For 1
-					__m256i row1_1 = _mm256_loadu_si256((__m256i*) & filt[row - 1 + 1][col - 1 + inner]);
-					__m256i row2_1 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col - 1 + inner]);
-					__m256i row3_1 = _mm256_loadu_si256((__m256i*) & filt[row + 1 + 1][col - 1 + inner]);
-
-
-
-
-
-					// ------------ Calc Gx ------------
-
-					// For 0
-					__m256i A_gx_0 = _mm256_maddubs_epi16(row1_0, GxMask13);
-					__m256i B_gx_0 = _mm256_maddubs_epi16(row2_0, GxMask2);
-					__m256i C_gx_0 = _mm256_maddubs_epi16(row3_0, GxMask13);
-
-					__m256i hadd1_gx_0 = _mm256_hadd_epi16(A_gx_0, A_gx_0);
-					__m256i hadd2_gx_0 = _mm256_hadd_epi16(B_gx_0, B_gx_0);
-					__m256i hadd3_gx_0 = _mm256_hadd_epi16(C_gx_0, C_gx_0);
-
-					__m256i Gx_0 = _mm256_add_epi16(hadd1_gx_0, hadd2_gx_0);
-					Gx_0 = _mm256_add_epi16(Gx_0, hadd3_gx_0);
-
-
-					// For 1
-					__m256i A_gx_1 = _mm256_maddubs_epi16(row1_1, GxMask13);
-					__m256i B_gx_1 = _mm256_maddubs_epi16(row2_1, GxMask2);
-					__m256i C_gx_1 = _mm256_maddubs_epi16(row3_1, GxMask13);
-
-					__m256i hadd1_gx_1 = _mm256_hadd_epi16(A_gx_1, A_gx_1);
-					__m256i hadd2_gx_1 = _mm256_hadd_epi16(B_gx_1, B_gx_1);
-					__m256i hadd3_gx_1 = _mm256_hadd_epi16(C_gx_1, C_gx_1);
-
-					__m256i Gx_1 = _mm256_add_epi16(hadd1_gx_1, hadd2_gx_1);
-					Gx_1 = _mm256_add_epi16(Gx_1, hadd3_gx_1);
-
-
-
-					// ------------ Calc Gx ------------
-
-					// For 0
-					__m256i A_gy_0 = _mm256_maddubs_epi16(row1_0, GyMask1);
-					__m256i C_gy_0 = _mm256_maddubs_epi16(row3_0, GyMask3);
-
-					__m256i hadd1_gy_0 = _mm256_hadd_epi16(A_gy_0, A_gy_0);
-					__m256i hadd3_gy_0 = _mm256_hadd_epi16(C_gy_0, C_gy_0);
-
-					__m256i Gy_0 = _mm256_add_epi16(hadd1_gy_0, hadd3_gy_0);
-
-
-					// For 1
-					__m256i A_gy_1 = _mm256_maddubs_epi16(row1_1, GyMask1);
-					__m256i C_gy_1 = _mm256_maddubs_epi16(row3_1, GyMask3);
-
-					__m256i hadd1_gy_1 = _mm256_hadd_epi16(A_gy_1, A_gy_1);
-					__m256i hadd3_gy_1 = _mm256_hadd_epi16(C_gy_1, C_gy_1);
-
-					__m256i Gy_1 = _mm256_add_epi16(hadd1_gy_1, hadd3_gy_1);
-
-
-					// ------------ Convert to float ------------
-					// For sqrt and atan2
-
-					__m256i sign_mask_0, sign_mask_1;
-
-					// For 0
-					// Gx
-					__m256i unpacked_Gx_0 = _mm256_unpacklo_epi16(Gx_0, zero); // Put elements in order seperated by zeros
-					sign_mask_0 = _mm256_cmpgt_epi16(zero, unpacked_Gx_0); // Mask for which are -ve (to handle 16bit int extension to 32bit float)
-					__m256i extended_Gx_0 = _mm256_or_si256(unpacked_Gx_0, _mm256_slli_epi32(sign_mask_0, 16)); // Extend integers and handle signed elements
-					__m256 float_Gx_0 = _mm256_cvtepi32_ps(extended_Gx_0); // Convert to float
-
-					// Gy
-					__m256i unpacked_Gy_0 = _mm256_unpacklo_epi16(Gy_0, zero);
-					sign_mask_0 = _mm256_cmpgt_epi16(zero, unpacked_Gy_0);
-					__m256i extended_Gy_0 = _mm256_or_si256(unpacked_Gy_0, _mm256_slli_epi32(sign_mask_0, 16));
-					__m256 float_Gy_0 = _mm256_cvtepi32_ps(extended_Gy_0);
-
-
-					// For 1
-					// Gx
-					__m256i unpacked_Gx_1 = _mm256_unpacklo_epi16(Gx_1, zero);
-					sign_mask_1 = _mm256_cmpgt_epi16(zero, unpacked_Gx_1);
-					__m256i extended_Gx_1 = _mm256_or_si256(unpacked_Gx_1, _mm256_slli_epi32(sign_mask_1, 16));
-					__m256 float_Gx_1 = _mm256_cvtepi32_ps(extended_Gx_1);
-
-					// Gy
-					__m256i unpacked_Gy_1 = _mm256_unpacklo_epi16(Gy_1, zero);
-					sign_mask_1 = _mm256_cmpgt_epi16(zero, unpacked_Gy_1);
-					__m256i extended_Gy_1 = _mm256_or_si256(unpacked_Gy_1, _mm256_slli_epi32(sign_mask_1, 16));
-					__m256 float_Gy_1 = _mm256_cvtepi32_ps(extended_Gy_1);
-
-
-
-
-					// ------------ Sqrt Mult ------------ 
-					// sqrt(Gx * Gx + Gy * Gy)
-
-					// For 0
-					__m256 A_squared_0 = _mm256_mul_ps(float_Gx_0, float_Gx_0);
-
-					__m256 sum_of_squares_0 = _mm256_fmadd_ps(float_Gy_0, float_Gy_0, A_squared_0);
-
-					__m256 result_sqrt_0 = _mm256_sqrt_ps(sum_of_squares_0);
-
-
-					// For 2
-					__m256 A_squared_1 = _mm256_mul_ps(float_Gx_1, float_Gx_1);
-
-					__m256 sum_of_squares_1 = _mm256_fmadd_ps(float_Gy_1, float_Gy_1, A_squared_1);
-
-					__m256 result_sqrt_1 = _mm256_sqrt_ps(sum_of_squares_1);
-
-
-
-
-					// ------------ Store gradient ------------
-
-					// For 0
-					float result_array_0[8];
-					_mm256_storeu_ps(result_array_0, result_sqrt_0);
-
-					gradient[row][col + inner] = (unsigned char)result_array_0[0];
-					gradient[row][col + 4 + inner] = (unsigned char)result_array_0[1];
-					gradient[row][col + 8 + inner] = (unsigned char)result_array_0[2];
-					gradient[row][col + 12 + inner] = (unsigned char)result_array_0[3];
-					gradient[row][col + 16 + inner] = (unsigned char)result_array_0[4];
-					gradient[row][col + 20 + inner] = (unsigned char)result_array_0[5];
-					gradient[row][col + 24 + inner] = (unsigned char)result_array_0[6];
-					gradient[row][col + 28 + inner] = (unsigned char)result_array_0[7];
-
-
-					// For 1
-					float result_array_1[8];
-					_mm256_storeu_ps(result_array_1, result_sqrt_1);
-
-					gradient[row + 1][col + inner] = (unsigned char)result_array_1[0];
-					gradient[row + 1][col + 4 + inner] = (unsigned char)result_array_1[1];
-					gradient[row + 1][col + 8 + inner] = (unsigned char)result_array_1[2];
-					gradient[row + 1][col + 12 + inner] = (unsigned char)result_array_1[3];
-					gradient[row + 1][col + 16 + inner] = (unsigned char)result_array_1[4];
-					gradient[row + 1][col + 20 + inner] = (unsigned char)result_array_1[5];
-					gradient[row + 1][col + 24 + inner] = (unsigned char)result_array_1[6];
-					gradient[row + 1][col + 28 + inner] = (unsigned char)result_array_1[7];
-
-					
-					// ------------ Edge direction ------------
-					// ((atan2(Gx, Gy)) / 3.14159) * 180.0
-					// Then round to nearest 45 degrees (shifted until angle within 0-180)
-
-
-					// For 0
-					__m256 angle_0 = _mm256_atan2_ps(float_Gx_0, float_Gy_0); // atan2 outputs between -pi & pi
-
-					// Round to nearest 4/pi rad (45 degrees)
-					__m256 scaled_angle_0 = _mm256_mul_ps(angle_0, pi_4); // scale by 4/pi rad (45 degrees)
-
-					__m256 rounded_angle_0 = _mm256_round_ps(scaled_angle_0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-
-					// Convert radians to degrees
-					__m256 newAngle_0 = _mm256_mul_ps(rounded_angle_0, degrees_45);
-
-					// Ensure angles are positive
-					__m256 is_negative_0 = _mm256_cmp_ps(newAngle_0, zero_float, _CMP_LT_OS); // Mask for negative values
-					newAngle_0 = _mm256_add_ps(newAngle_0, _mm256_and_ps(is_negative_0, degrees_360));  // Add 360 degrees to negative angles
-
-					// Angles greater than 180 are pushed back -180 degrees (This is the case when an angle was -ve or is 180)
-					__m256 is_greater_than_180_0 = _mm256_cmp_ps(newAngle_0, degrees_180, _CMP_GE_OS);
-					newAngle_0 = _mm256_sub_ps(newAngle_0, _mm256_and_ps(is_greater_than_180_0, degrees_180));
-
-
-					// For 1
-					__m256 angle_1 = _mm256_atan2_ps(float_Gx_1, float_Gy_1); // atan2 outputs between -pi & pi
-
-					// Round to nearest 4/pi rad (45 degrees)
-					__m256 scaled_angle_1 = _mm256_mul_ps(angle_1, pi_4); // scale by 4/pi rad (45 degrees)
-
-					__m256 rounded_angle_1 = _mm256_round_ps(scaled_angle_1, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-
-					// Convert radians to degrees
-					__m256 newAngle_1 = _mm256_mul_ps(rounded_angle_1, degrees_45);
-
-					// Ensure angles are positive
-					__m256 is_negative_1 = _mm256_cmp_ps(newAngle_1, zero_float, _CMP_LT_OS); // Mask for negative values
-					newAngle_1 = _mm256_add_ps(newAngle_1, _mm256_and_ps(is_negative_1, degrees_360));  // Add 360 degrees to negative angles
-
-					// Angles greater than 180 are pushed back -180 degrees (This is the case when an angle was -ve or is 180)
-					__m256 is_greater_than_180_1 = _mm256_cmp_ps(newAngle_1, degrees_180, _CMP_GE_OS);
-					newAngle_1 = _mm256_sub_ps(newAngle_1, _mm256_and_ps(is_greater_than_180_1, degrees_180));
-
-
-
-					// ------------ Store edgeDir ------------
-
-					// For 0
-					float AngleArray_0[8];
-					_mm256_storeu_ps(AngleArray_0, newAngle_0);
-
-					edgeDir[row][col + inner] = AngleArray_0[0];
-					edgeDir[row][col + inner + 4] = AngleArray_0[1];
-					edgeDir[row][col + inner + 8] = AngleArray_0[2];
-					edgeDir[row][col + inner + 12] = AngleArray_0[3];
-					edgeDir[row][col + inner + 16] = AngleArray_0[4];
-					edgeDir[row][col + inner + 20] = AngleArray_0[5];
-					edgeDir[row][col + inner + 24] = AngleArray_0[6];
-					edgeDir[row][col + inner + 28] = AngleArray_0[7];
-
-
-					// For 1
-					float AngleArray_1[8];
-					_mm256_storeu_ps(AngleArray_1, newAngle_1);
-
-					edgeDir[row + 1][col + inner] = AngleArray_1[0];
-					edgeDir[row + 1][col + inner + 4] = AngleArray_1[1];
-					edgeDir[row + 1][col + inner + 8] = AngleArray_1[2];
-					edgeDir[row + 1][col + inner + 12] = AngleArray_1[3];
-					edgeDir[row + 1][col + inner + 16] = AngleArray_1[4];
-					edgeDir[row + 1][col + inner + 20] = AngleArray_1[5];
-					edgeDir[row + 1][col + inner + 24] = AngleArray_1[6];
-					edgeDir[row + 1][col + inner + 28] = AngleArray_1[7];
-
-
-					
-
-				}
-			}
-		}
-	}
-}
 
 
 void Secound_Testing() {
+	int i, j;
 	int r, row, col, inner;
+	__m128i low, high;
 
+	int newAngle;
 
 	// Gx
 	// [-1, 0, 1]
 	// [-2, 0, 2]
 	// [-1, 0, 1]
-	const __m256i GxMask13 = _mm256_set_epi8(0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1); // 1 & 3
-	const __m256i GxMask2 = _mm256_set_epi8(0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2);
+	__m256i GxMask13 = _mm256_set_epi8(0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1);
+	__m256i GxMask2 = _mm256_set_epi8(0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2);
 
 	// Gy
 	// [-1,-2,-1]
-	// [ 0, 0, 0] zero isnt needed
+	// [ 0, 0, 0]
 	// [ 1, 2, 1]
-	const __m256i GyMask1 = _mm256_set_epi8(0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1);
-	const __m256i GyMask3 = _mm256_set_epi8(0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1);
-
-	const __m256i zero = _mm256_setzero_si256();
-	const __m256 pi_4 = _mm256_set1_ps(4.0f / 3.14159265359f);  // 4/pi radians = 45 degrees
-	const __m256 pi = _mm256_set1_ps(3.14159265359f);
-	const __m256 degrees_45 = _mm256_set1_ps(45.0f);
-	const __m256 zero_float = _mm256_setzero_ps();
-	const __m256 degrees_360 = _mm256_set1_ps(360.0f);
-	const __m256 degrees_180 = _mm256_set1_ps(180.0f);
-
-
-	// Each operation calculates for many columns
-	// e.g. when inner = 0 & col = 1. columns: 1, 5, 9, 13, 17, 21, 25, 29 are calculated
-	// Meaning a row of size 32 is calculated
-
-
+	__m256i GyMask1 = _mm256_set_epi8(0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1);
+	__m256i GyMask3 = _mm256_set_epi8(0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1);
 
 	//#pragma omp parallel for
 	for (r = 1; r < N - 1; r += TILE) {
 		for (col = 1; col < M - 1; col += 32) {
-			for (row = r; row < MIN(N - 1, r + TILE); row += 2) { // Unroll by 2
-
+			for (row = r; row < MIN(N - 1, r + TILE); row++) {
 				for (inner = 0; inner < 4; inner++) {
 
+					// Each operation calculates for many columns
+					// e.g. when inner = 0 & col = 1. columns: 1, 5, 9, 13, 17, 21, 25, 29 are calculated
+					// Meaning for each complete inner loop a 32 element row is calculated
 
-					// ------------ Load Rows ------------
+					//printf("r: %d, col: %d, row: %d, inner: %d \n", r, col, row, inner);
 
-					// For 0
-					__m256i row1_0 = _mm256_loadu_si256((__m256i*) & filt[row - 1][col - 1 + inner]);
-					__m256i row2_0 = _mm256_loadu_si256((__m256i*) & filt[row][col - 1 + inner]);
-					__m256i row3_0 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col - 1 + inner]);
-
-					// For 1
-					__m256i row1_1 = _mm256_loadu_si256((__m256i*) & filt[row - 1 + 1][col - 1 + inner]);
-					__m256i row2_1 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col - 1 + inner]);
-					__m256i row3_1 = _mm256_loadu_si256((__m256i*) & filt[row + 1 + 1][col - 1 + inner]);
-
-
+					// Load Row 1
+					__m256i row1 = _mm256_loadu_si256((__m256i*) & filt[row - 1][col - 1 + inner]);
+					// Load Row 2
+					__m256i row2 = _mm256_loadu_si256((__m256i*) & filt[row][col - 1 + inner]);
+					// Load Row 3
+					__m256i row3 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col - 1 + inner]);
 
 
+					// --- Gx ---
 
-					// ------------ Calc Gx ------------
+					// Row 1
+					__m256i A_gx = _mm256_maddubs_epi16(row1, GxMask13);
+					__m256i hadd1_gx = _mm256_hadd_epi16(A_gx, A_gx);
 
-					// For 0
-					__m256i A_gx_0 = _mm256_maddubs_epi16(row1_0, GxMask13);
-					__m256i B_gx_0 = _mm256_maddubs_epi16(row2_0, GxMask2);
-					__m256i C_gx_0 = _mm256_maddubs_epi16(row3_0, GxMask13);
+					// Row 2
+					__m256i B_gx = _mm256_maddubs_epi16(row2, GxMask2);
+					__m256i hadd2_gx = _mm256_hadd_epi16(B_gx, B_gx);
 
-					__m256i hadd1_gx_0 = _mm256_hadd_epi16(A_gx_0, A_gx_0);
-					__m256i hadd2_gx_0 = _mm256_hadd_epi16(B_gx_0, B_gx_0);
-					__m256i hadd3_gx_0 = _mm256_hadd_epi16(C_gx_0, C_gx_0);
-
-					__m256i Gx_0 = _mm256_add_epi16(hadd1_gx_0, hadd2_gx_0);
-					Gx_0 = _mm256_add_epi16(Gx_0, hadd3_gx_0);
-
-
-					// For 1
-					__m256i A_gx_1 = _mm256_maddubs_epi16(row1_1, GxMask13);
-					__m256i B_gx_1 = _mm256_maddubs_epi16(row2_1, GxMask2);
-					__m256i C_gx_1 = _mm256_maddubs_epi16(row3_1, GxMask13);
-
-					__m256i hadd1_gx_1 = _mm256_hadd_epi16(A_gx_1, A_gx_1);
-					__m256i hadd2_gx_1 = _mm256_hadd_epi16(B_gx_1, B_gx_1);
-					__m256i hadd3_gx_1 = _mm256_hadd_epi16(C_gx_1, C_gx_1);
-
-					__m256i Gx_1 = _mm256_add_epi16(hadd1_gx_1, hadd2_gx_1);
-					Gx_1 = _mm256_add_epi16(Gx_1, hadd3_gx_1);
+					// Row 3
+					__m256i C_gx = _mm256_maddubs_epi16(row3, GxMask13);
+					__m256i hadd3_gx = _mm256_hadd_epi16(C_gx, C_gx);
 
 
-
-					// ------------ Calc Gx ------------
-
-					// For 0
-					__m256i A_gy_0 = _mm256_maddubs_epi16(row1_0, GyMask1);
-					__m256i C_gy_0 = _mm256_maddubs_epi16(row3_0, GyMask3);
-
-					__m256i hadd1_gy_0 = _mm256_hadd_epi16(A_gy_0, A_gy_0);
-					__m256i hadd3_gy_0 = _mm256_hadd_epi16(C_gy_0, C_gy_0);
-
-					__m256i Gy_0 = _mm256_add_epi16(hadd1_gy_0, hadd3_gy_0);
+					// Final
+					__m256i Gx = _mm256_add_epi16(hadd1_gx, hadd2_gx);
+					Gx = _mm256_add_epi16(Gx, hadd3_gx);
 
 
-					// For 1
-					__m256i A_gy_1 = _mm256_maddubs_epi16(row1_1, GyMask1);
-					__m256i C_gy_1 = _mm256_maddubs_epi16(row3_1, GyMask3);
+					// --- Gy ---
 
-					__m256i hadd1_gy_1 = _mm256_hadd_epi16(A_gy_1, A_gy_1);
-					__m256i hadd3_gy_1 = _mm256_hadd_epi16(C_gy_1, C_gy_1);
+					// Row 1
+					__m256i A_gy = _mm256_maddubs_epi16(row1, GyMask1);
+					__m256i hadd1_gy = _mm256_hadd_epi16(A_gy, A_gy);
 
-					__m256i Gy_1 = _mm256_add_epi16(hadd1_gy_1, hadd3_gy_1);
+					// Row 3
+					__m256i C_gy = _mm256_maddubs_epi16(row3, GyMask3);
+					__m256i hadd3_gy = _mm256_hadd_epi16(C_gy, C_gy);
+
+
+					// Final
+					__m256i Gy = _mm256_add_epi16(hadd1_gy, hadd3_gy);
+
 
 
 					// ------------ Convert to float ------------
 					// For sqrt and atan2
 
-					__m256i sign_mask_0, sign_mask_1;
+					__m256i sign_mask;
+					const __m256i zero = _mm256_setzero_si256();
 
-					// For 0
 					// Gx
-					__m256i unpacked_Gx_0 = _mm256_unpacklo_epi16(Gx_0, zero); // Put elements in order seperated by zeros
-					sign_mask_0 = _mm256_cmpgt_epi16(zero, unpacked_Gx_0); // Mask for which are -ve (to handle 16bit int extension to 32bit float)
-					__m256i extended_Gx_0 = _mm256_or_si256(unpacked_Gx_0, _mm256_slli_epi32(sign_mask_0, 16)); // Extend integers and handle signed elements
-					__m256 float_Gx_0 = _mm256_cvtepi32_ps(extended_Gx_0); // Convert to float
+					__m256i unpacked_Gx = _mm256_unpacklo_epi16(Gx, zero); // Put elements in order seperated by zeros
+
+					sign_mask = _mm256_cmpgt_epi16(zero, unpacked_Gx); // Mask for which are -ve (to handle 16bit int extension to 32bit float)
+
+					__m256i extended_Gx = _mm256_or_si256(unpacked_Gx, _mm256_slli_epi32(sign_mask, 16)); // Extend integers and handle signed elements
+
+					__m256 float_Gx = _mm256_cvtepi32_ps(extended_Gx); // Convert to float
 
 					// Gy
-					__m256i unpacked_Gy_0 = _mm256_unpacklo_epi16(Gy_0, zero);
-					sign_mask_0 = _mm256_cmpgt_epi16(zero, unpacked_Gy_0);
-					__m256i extended_Gy_0 = _mm256_or_si256(unpacked_Gy_0, _mm256_slli_epi32(sign_mask_0, 16));
-					__m256 float_Gy_0 = _mm256_cvtepi32_ps(extended_Gy_0);
+					__m256i unpacked_Gy = _mm256_unpacklo_epi16(Gy, zero);
 
+					sign_mask = _mm256_cmpgt_epi16(zero, unpacked_Gy);
 
-					// For 1
-					// Gx
-					__m256i unpacked_Gx_1 = _mm256_unpacklo_epi16(Gx_1, zero);
-					sign_mask_1 = _mm256_cmpgt_epi16(zero, unpacked_Gx_1);
-					__m256i extended_Gx_1 = _mm256_or_si256(unpacked_Gx_1, _mm256_slli_epi32(sign_mask_1, 16));
-					__m256 float_Gx_1 = _mm256_cvtepi32_ps(extended_Gx_1);
+					__m256i extended_Gy = _mm256_or_si256(unpacked_Gy, _mm256_slli_epi32(sign_mask, 16));
 
-					// Gy
-					__m256i unpacked_Gy_1 = _mm256_unpacklo_epi16(Gy_1, zero);
-					sign_mask_1 = _mm256_cmpgt_epi16(zero, unpacked_Gy_1);
-					__m256i extended_Gy_1 = _mm256_or_si256(unpacked_Gy_1, _mm256_slli_epi32(sign_mask_1, 16));
-					__m256 float_Gy_1 = _mm256_cvtepi32_ps(extended_Gy_1);
-
-
+					__m256 float_Gy = _mm256_cvtepi32_ps(extended_Gy);
 
 
 					// ------------ Sqrt Mult ------------ 
 					// sqrt(Gx * Gx + Gy * Gy)
 
-					// For 0
-					__m256 A_squared_0 = _mm256_mul_ps(float_Gx_0, float_Gx_0);
+					__m256 A_squared = _mm256_mul_ps(float_Gx, float_Gx);
 
-					__m256 sum_of_squares_0 = _mm256_fmadd_ps(float_Gy_0, float_Gy_0, A_squared_0);
+					__m256 sum_of_squares = _mm256_fmadd_ps(float_Gy, float_Gy, A_squared);
 
-					__m256 result_sqrt_0 = _mm256_sqrt_ps(sum_of_squares_0);
-
-
-					// For 2
-					__m256 A_squared_1 = _mm256_mul_ps(float_Gx_1, float_Gx_1);
-
-					__m256 sum_of_squares_1 = _mm256_fmadd_ps(float_Gy_1, float_Gy_1, A_squared_1);
-
-					__m256 result_sqrt_1 = _mm256_sqrt_ps(sum_of_squares_1);
-
+					__m256 result_sqrt = _mm256_sqrt_ps(sum_of_squares);
 
 
 
 					// ------------ Store gradient ------------
 
-					// For 0
-					float result_array_0[8];
-					_mm256_storeu_ps(result_array_0, result_sqrt_0);
+					float result_array[8];
+					_mm256_storeu_ps(result_array, result_sqrt);
 
-					gradient[row][col + inner] = (unsigned char)result_array_0[0];
-					gradient[row][col + 4 + inner] = (unsigned char)result_array_0[1];
-					gradient[row][col + 8 + inner] = (unsigned char)result_array_0[2];
-					gradient[row][col + 12 + inner] = (unsigned char)result_array_0[3];
-					gradient[row][col + 16 + inner] = (unsigned char)result_array_0[4];
-					gradient[row][col + 20 + inner] = (unsigned char)result_array_0[5];
-					gradient[row][col + 24 + inner] = (unsigned char)result_array_0[6];
-					gradient[row][col + 28 + inner] = (unsigned char)result_array_0[7];
+					gradient[row][col + inner] = (unsigned char)result_array[0];
+					gradient[row][col + 4 + inner] = (unsigned char)result_array[1];
+					gradient[row][col + 8 + inner] = (unsigned char)result_array[2];
+					gradient[row][col + 12 + inner] = (unsigned char)result_array[3];
+					gradient[row][col + 16 + inner] = (unsigned char)result_array[4];
+					gradient[row][col + 20 + inner] = (unsigned char)result_array[5];
+					gradient[row][col + 24 + inner] = (unsigned char)result_array[6];
+					gradient[row][col + 28 + inner] = (unsigned char)result_array[7];
 
 
-					// For 1
-					float result_array_1[8];
-					_mm256_storeu_ps(result_array_1, result_sqrt_1);
-
-					gradient[row + 1][col + inner] = (unsigned char)result_array_1[0];
-					gradient[row + 1][col + 4 + inner] = (unsigned char)result_array_1[1];
-					gradient[row + 1][col + 8 + inner] = (unsigned char)result_array_1[2];
-					gradient[row + 1][col + 12 + inner] = (unsigned char)result_array_1[3];
-					gradient[row + 1][col + 16 + inner] = (unsigned char)result_array_1[4];
-					gradient[row + 1][col + 20 + inner] = (unsigned char)result_array_1[5];
-					gradient[row + 1][col + 24 + inner] = (unsigned char)result_array_1[6];
-					gradient[row + 1][col + 28 + inner] = (unsigned char)result_array_1[7];
 
 
 					// ------------ Edge direction ------------
 					// ((atan2(Gx, Gy)) / 3.14159) * 180.0
 					// Then round to nearest 45 degrees (shifted until angle within 0-180)
 
+					const __m256 inv_pi_4 = _mm256_set1_ps(4.0f / 3.14159265359f);  // 1 / (pi/4)
+					const __m256 pi = _mm256_set1_ps(3.14159265359f);
+					const __m256 degrees_45 = _mm256_set1_ps(45.0f);
+					const __m256 zero_float = _mm256_setzero_ps();
+					const __m256 degrees_360 = _mm256_set1_ps(360.0f);
+					const __m256 degrees_180 = _mm256_set1_ps(180.0f);
 
-					// For 0
-					__m256 angle_0 = _mm256_atan2_ps(float_Gx_0, float_Gy_0); // atan2 outputs between -pi & pi
-
-					// Round to nearest 4/pi rad (45 degrees)
-					__m256 scaled_angle_0 = _mm256_mul_ps(angle_0, pi_4); // scale by 4/pi rad (45 degrees)
-
-					__m256 rounded_angle_0 = _mm256_round_ps(scaled_angle_0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-
-					// Convert radians to degrees
-					__m256 newAngle_0 = _mm256_mul_ps(rounded_angle_0, degrees_45);
-
-					// Ensure angles are positive
-					__m256 is_negative_0 = _mm256_cmp_ps(newAngle_0, zero_float, _CMP_LT_OS); // Mask for negative values
-					newAngle_0 = _mm256_add_ps(newAngle_0, _mm256_and_ps(is_negative_0, degrees_360));  // Add 360 degrees to negative angles
-
-					// Angles greater than 180 are pushed back -180 degrees (This is the case when an angle was -ve or is 180)
-					__m256 is_greater_than_180_0 = _mm256_cmp_ps(newAngle_0, degrees_180, _CMP_GE_OS);
-					newAngle_0 = _mm256_sub_ps(newAngle_0, _mm256_and_ps(is_greater_than_180_0, degrees_180));
-
-
-					// For 1
-					__m256 angle_1 = _mm256_atan2_ps(float_Gx_1, float_Gy_1); // atan2 outputs between -pi & pi
+					__m256 angle = _mm256_atan2_ps(float_Gx, float_Gy); // atan2 outputs between -pi & pi
 
 					// Round to nearest 4/pi rad (45 degrees)
-					__m256 scaled_angle_1 = _mm256_mul_ps(angle_1, pi_4); // scale by 4/pi rad (45 degrees)
+					__m256 scaled_angle = _mm256_mul_ps(angle, inv_pi_4); // scale by 4/pi rad (45 degrees)
 
-					__m256 rounded_angle_1 = _mm256_round_ps(scaled_angle_1, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+					__m256 rounded_angle = _mm256_round_ps(scaled_angle, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
 
 					// Convert radians to degrees
-					__m256 newAngle_1 = _mm256_mul_ps(rounded_angle_1, degrees_45);
+					__m256 newAngle = _mm256_mul_ps(rounded_angle, degrees_45);
 
 					// Ensure angles are positive
-					__m256 is_negative_1 = _mm256_cmp_ps(newAngle_1, zero_float, _CMP_LT_OS); // Mask for negative values
-					newAngle_1 = _mm256_add_ps(newAngle_1, _mm256_and_ps(is_negative_1, degrees_360));  // Add 360 degrees to negative angles
+					__m256 is_negative = _mm256_cmp_ps(newAngle, zero_float, _CMP_LT_OS); // Mask for negative values
+					newAngle = _mm256_add_ps(newAngle, _mm256_and_ps(is_negative, degrees_360));  // Add 360 degrees to negative angles
 
 					// Angles greater than 180 are pushed back -180 degrees (This is the case when an angle was -ve or is 180)
-					__m256 is_greater_than_180_1 = _mm256_cmp_ps(newAngle_1, degrees_180, _CMP_GE_OS);
-					newAngle_1 = _mm256_sub_ps(newAngle_1, _mm256_and_ps(is_greater_than_180_1, degrees_180));
-
+					__m256 is_greater_than_180 = _mm256_cmp_ps(newAngle, degrees_180, _CMP_GE_OS);
+					newAngle = _mm256_sub_ps(newAngle, _mm256_and_ps(is_greater_than_180, degrees_180));
 
 
 					// ------------ Store edgeDir ------------
 
-					// For 0
-					float AngleArray_0[8];
-					_mm256_storeu_ps(AngleArray_0, newAngle_0);
+					float AngleArray[8];
+					_mm256_storeu_ps(AngleArray, newAngle);
 
-					edgeDir[row][col + inner] = AngleArray_0[0];
-					edgeDir[row][col + inner + 4] = AngleArray_0[1];
-					edgeDir[row][col + inner + 8] = AngleArray_0[2];
-					edgeDir[row][col + inner + 12] = AngleArray_0[3];
-					edgeDir[row][col + inner + 16] = AngleArray_0[4];
-					edgeDir[row][col + inner + 20] = AngleArray_0[5];
-					edgeDir[row][col + inner + 24] = AngleArray_0[6];
-					edgeDir[row][col + inner + 28] = AngleArray_0[7];
-
-
-					// For 1
-					float AngleArray_1[8];
-					_mm256_storeu_ps(AngleArray_1, newAngle_1);
-
-					edgeDir[row + 1][col + inner] = AngleArray_1[0];
-					edgeDir[row + 1][col + inner + 4] = AngleArray_1[1];
-					edgeDir[row + 1][col + inner + 8] = AngleArray_1[2];
-					edgeDir[row + 1][col + inner + 12] = AngleArray_1[3];
-					edgeDir[row + 1][col + inner + 16] = AngleArray_1[4];
-					edgeDir[row + 1][col + inner + 20] = AngleArray_1[5];
-					edgeDir[row + 1][col + inner + 24] = AngleArray_1[6];
-					edgeDir[row + 1][col + inner + 28] = AngleArray_1[7];
+					edgeDir[row][col + inner] = AngleArray[0];
+					edgeDir[row][col + inner + 4] = AngleArray[1];
+					edgeDir[row][col + inner + 8] = AngleArray[2];
+					edgeDir[row][col + inner + 12] = AngleArray[3];
+					edgeDir[row][col + inner + 16] = AngleArray[4];
+					edgeDir[row][col + inner + 20] = AngleArray[5];
+					edgeDir[row][col + inner + 24] = AngleArray[6];
+					edgeDir[row][col + inner + 28] = AngleArray[7];
 
 
 
@@ -1944,11 +1575,6 @@ void Secound_Testing() {
 		}
 	}
 }
-
-
-
-
-
 
 
 
@@ -2008,7 +1634,6 @@ int image_detection() {
 	//NewWorking();
 	//Testing();
 	//NewestWorking();
-	//Working_Reg_Block();
 	Secound_Testing();
 	//Sobel_Original();
 
