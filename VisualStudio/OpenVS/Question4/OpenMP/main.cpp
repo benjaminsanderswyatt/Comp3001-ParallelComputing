@@ -2,7 +2,8 @@
 #include "canny.h"
 void Sobel_Original();  // Remove
 void Sobel();
-unsigned char(*storeEdgeDir())[M];
+void Secound_Testing();
+void NewWorking();
 void benchmark();   // Remove
 void compare();   // Remove
 
@@ -26,7 +27,7 @@ int main() {
 
 
 
-#define TIMES 10 // Remove
+#define TIMES 100 // Remove
 
 void benchmark() {  // Remove
     printf("\nComparing speed to the orignal sobel\n");
@@ -48,7 +49,8 @@ void benchmark() {  // Remove
     auto start_1 = std::chrono::high_resolution_clock::now();
 
     for (int i = 0; i < TIMES; i++) {
-        Sobel();
+        //Sobel();
+        Secound_Testing();
     }
     
 

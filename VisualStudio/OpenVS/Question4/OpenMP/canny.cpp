@@ -1712,13 +1712,12 @@ void Secound_Testing() {
 
 					// For 0
 					__m256i row1_0 = _mm256_loadu_si256((__m256i*) & filt[row - 1][col - 1 + inner]);
-					__m256i row2_0 = _mm256_loadu_si256((__m256i*) & filt[row][col - 1 + inner]);
-					__m256i row3_0 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col - 1 + inner]);
+					__m256i row2_0__row1_1 = _mm256_loadu_si256((__m256i*) & filt[row][col - 1 + inner]);
+					__m256i row3_0__row2_1 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col - 1 + inner]);
 
 					// For 1
-					__m256i row1_1 = _mm256_loadu_si256((__m256i*) & filt[row - 1 + 1][col - 1 + inner]);
-					__m256i row2_1 = _mm256_loadu_si256((__m256i*) & filt[row + 1][col - 1 + inner]);
-					__m256i row3_1 = _mm256_loadu_si256((__m256i*) & filt[row + 1 + 1][col - 1 + inner]);
+					// Some rows are the same (row1_1 == row2_0) (row2_1 == row3_0)
+					__m256i row3_1 = _mm256_loadu_si256((__m256i*) & filt[row + 2][col - 1 + inner]);
 
 
 
@@ -1728,8 +1727,8 @@ void Secound_Testing() {
 
 					// For 0
 					__m256i A_gx_0 = _mm256_maddubs_epi16(row1_0, GxMask13);
-					__m256i B_gx_0 = _mm256_maddubs_epi16(row2_0, GxMask2);
-					__m256i C_gx_0 = _mm256_maddubs_epi16(row3_0, GxMask13);
+					__m256i B_gx_0 = _mm256_maddubs_epi16(row2_0__row1_1, GxMask2);
+					__m256i C_gx_0 = _mm256_maddubs_epi16(row3_0__row2_1, GxMask13);
 
 					__m256i hadd1_gx_0 = _mm256_hadd_epi16(A_gx_0, A_gx_0);
 					__m256i hadd2_gx_0 = _mm256_hadd_epi16(B_gx_0, B_gx_0);
@@ -1740,8 +1739,8 @@ void Secound_Testing() {
 
 
 					// For 1
-					__m256i A_gx_1 = _mm256_maddubs_epi16(row1_1, GxMask13);
-					__m256i B_gx_1 = _mm256_maddubs_epi16(row2_1, GxMask2);
+					__m256i A_gx_1 = _mm256_maddubs_epi16(row2_0__row1_1, GxMask13);
+					__m256i B_gx_1 = _mm256_maddubs_epi16(row3_0__row2_1, GxMask2);
 					__m256i C_gx_1 = _mm256_maddubs_epi16(row3_1, GxMask13);
 
 					__m256i hadd1_gx_1 = _mm256_hadd_epi16(A_gx_1, A_gx_1);
@@ -1757,7 +1756,7 @@ void Secound_Testing() {
 
 					// For 0
 					__m256i A_gy_0 = _mm256_maddubs_epi16(row1_0, GyMask1);
-					__m256i C_gy_0 = _mm256_maddubs_epi16(row3_0, GyMask3);
+					__m256i C_gy_0 = _mm256_maddubs_epi16(row3_0__row2_1, GyMask3);
 
 					__m256i hadd1_gy_0 = _mm256_hadd_epi16(A_gy_0, A_gy_0);
 					__m256i hadd3_gy_0 = _mm256_hadd_epi16(C_gy_0, C_gy_0);
@@ -1766,7 +1765,7 @@ void Secound_Testing() {
 
 
 					// For 1
-					__m256i A_gy_1 = _mm256_maddubs_epi16(row1_1, GyMask1);
+					__m256i A_gy_1 = _mm256_maddubs_epi16(row2_0__row1_1, GyMask1);
 					__m256i C_gy_1 = _mm256_maddubs_epi16(row3_1, GyMask3);
 
 					__m256i hadd1_gy_1 = _mm256_hadd_epi16(A_gy_1, A_gy_1);
@@ -1944,7 +1943,6 @@ void Secound_Testing() {
 		}
 	}
 }
-
 
 
 
