@@ -22,8 +22,8 @@ static char OUT_NAME2[] = "out2.pgm";
 static char OUT_NAME3[] = "out3.pgm";
 static char OUT_NAME4[] = "out4.pgm";
 
-#define	N 1024
-#define M 1024
+#define	N 1024 // 1024
+#define M 1024 // 1024
 
 
 int image_detection();
