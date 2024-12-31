@@ -72,6 +72,7 @@ bool different(unsigned char **first_image, unsigned char **second_image) {
     for (i = 0; i < N; i++) {
         for (j = 0; j < M; j++) {
             if (first_image[i][j] != second_image[i][j]) {
+                printf("\n Different at i: %d, j: %d\n", i, j);
                 return true;
             }
         }
