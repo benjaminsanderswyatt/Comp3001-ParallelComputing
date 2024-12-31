@@ -1,11 +1,11 @@
 
 #include "canny.h"
-void Sobel_Original();  // Remove
+
 void Sobel();
-void Secound_Testing();
-void NewWorking();
-void benchmark();   // Remove
-void compare();   // Remove
+//void Secound_Testing();
+//void NewWorking();
+//void benchmark();   // Remove
+//void compare();   // Remove
 
 
 int main() {
@@ -17,7 +17,7 @@ int main() {
 
 
     
-    compare();   // Remove
+    //compare();   // Remove
     //benchmark(); // Remove
 
 	system("pause");
@@ -26,7 +26,7 @@ int main() {
 
 
 
-
+/*
 #define TIMES 100 // Remove
 
 void benchmark() {  // Remove
@@ -139,3 +139,4 @@ void compare() {
     free(out2_image);
     free(correct_image);
 }
+*/

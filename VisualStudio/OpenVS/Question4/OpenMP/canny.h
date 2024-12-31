@@ -44,15 +44,3 @@ int getint(FILE *fp);
 
 //void trace_edges(int x0, int y0, int x, int y);
 //int sub_frames(int dtheta);
-
-
-
-
-
-
-
-
-static char EDGE_NAME_TEST[] = "EdgeDir";  // REMOVE
-static char EDGE_NAME_CORRECT[] = "EdgeDirOutPut";   // REMOVE
-
-static char CORRECT[] = "Correct.pgm";   // REMOVE
