@@ -1,9 +1,75 @@
 #include <omp.h>
+#include <immintrin.h>
 
 #include "canny.h"
 
 unsigned char filt[N][M], gradient[N][M], grad2[N][M], edgeDir[N][M];
 unsigned char gaussianMask[5][5];
+
+signed char GxMask[3][3], GyMask[3][3];
+void Sobel_Original() {
+
+
+	int i, j;
+	unsigned int    row, col;
+	int rowOffset;
+	int colOffset;
+	int Gx;
+	int Gy;
+	float thisAngle;
+	int newAngle;
+	int newPixel;
+
+	unsigned char temp;
+
+
+	/* Declare Sobel masks */
+	GxMask[0][0] = -1; GxMask[0][1] = 0; GxMask[0][2] = 1;
+	GxMask[1][0] = -2; GxMask[1][1] = 0; GxMask[1][2] = 2;
+	GxMask[2][0] = -1; GxMask[2][1] = 0; GxMask[2][2] = 1;
+
+	GyMask[0][0] = -1; GyMask[0][1] = -2; GyMask[0][2] = -1;
+	GyMask[1][0] = 0; GyMask[1][1] = 0; GyMask[1][2] = 0;
+	GyMask[2][0] = 1; GyMask[2][1] = 2; GyMask[2][2] = 1;
+
+	/*---------------------------- Determine edge directions and gradient strengths -------------------------------------------*/
+	for (row = 1; row < N - 1; row++) {
+		for (col = 1; col < M - 1; col++) {
+
+			Gx = 0;
+			Gy = 0;
+
+			/* Calculate the sum of the Sobel mask times the nine surrounding pixels in the x and y direction */
+			for (rowOffset = -1; rowOffset <= 1; rowOffset++) {
+				for (colOffset = -1; colOffset <= 1; colOffset++) {
+
+					Gx += filt[row + rowOffset][col + colOffset] * GxMask[rowOffset + 1][colOffset + 1];
+					Gy += filt[row + rowOffset][col + colOffset] * GyMask[rowOffset + 1][colOffset + 1];
+				}
+			}
+
+			gradient[row][col] = (unsigned char)(sqrt(Gx * Gx + Gy * Gy));
+
+			thisAngle = (((atan2(Gx, Gy)) / 3.14159) * 180.0);
+
+			/* Convert actual edge direction to approximate value */
+			if (((thisAngle >= -22.5) && (thisAngle <= 22.5)) || (thisAngle >= 157.5) || (thisAngle <= -157.5))
+				newAngle = 0;
+			else if (((thisAngle > 22.5) && (thisAngle < 67.5)) || ((thisAngle > -157.5) && (thisAngle < -112.5)))
+				newAngle = 45;
+			else if (((thisAngle >= 67.5) && (thisAngle <= 112.5)) || ((thisAngle >= -112.5) && (thisAngle <= -67.5)))
+				newAngle = 90;
+			else if (((thisAngle > 112.5) && (thisAngle < 157.5)) || ((thisAngle > -67.5) && (thisAngle < -22.5)))
+				newAngle = 135;
+
+
+			edgeDir[row][col] = newAngle;
+		}
+	}
+
+}
+
+
 
 void GaussianBlur() {
 
@@ -67,6 +133,19 @@ void GaussianBlur() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define ROWTILE 32
 
@@ -120,7 +199,7 @@ void Sobel() {
 			for (int c = 1; c < M - 1; c += 32) {
 				for (int row = r; row < MIN(N - 4, r + 32); row += 4) { // Unroll by 4
 					for (int col = c; col < MIN(c + 4, M - 32); col++) {
-			
+
 						// ------------ Load Rows ------------
 
 						// For 0
@@ -783,11 +862,11 @@ void Sobel() {
 
 				// Gx
 				Gx += filt[row - 1][col + 1] - filt[row - 1][col - 1];
-				Gx += (filt[row][col + 1] - filt[row][col - 1]) << 1; // Mult by 2 using bit shift
+				Gx += (filt[row][col + 1] - filt[row][col - 1]) << 1; // Mult by 2 using shift
 				Gx += filt[row + 1][col + 1] - filt[row + 1][col - 1];
 
 				// Gy
-				Gy += (filt[row + 1][col] - filt[row - 1][col]) << 1;
+				Gy += (filt[row + 1][col] - filt[row - 1][col]) << 1; // Mult by 2 using shift
 				Gy += filt[row + 1][col + 1] + filt[row + 1][col - 1];
 				Gy -= filt[row - 1][col + 1] + filt[row - 1][col - 1];
 
@@ -817,6 +896,167 @@ void Sobel() {
 		}
 	}
 }
+
+
+
+void Sobel_Test() {
+	//int r, c, row, col;
+
+	// Gx
+	// [-1, 0, 1]
+	// [-2, 0, 2]
+	// [-1, 0, 1]
+	const __m256i GxMask13 = _mm256_set_epi8(0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1); // 1 & 3
+	const __m256i GxMask2 = _mm256_set_epi8(0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2, 0, 2, 0, -2);
+
+	// Gy
+	// [-1,-2,-1]
+	// [ 0, 0, 0] zero isnt needed
+	// [ 1, 2, 1]
+	const __m256i GyMask1 = _mm256_set_epi8(0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1, 0, -1, -2, -1);
+	const __m256i GyMask3 = _mm256_set_epi8(0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1);
+
+	const __m256i zero = _mm256_setzero_si256();
+	const __m256 pi_4 = _mm256_set1_ps(FOURPIRAD);  // 4/pi radians = 45 degrees
+	const __m256 pi = _mm256_set1_ps(3.14159f);
+
+	const __m256 zero_float = _mm256_setzero_ps();
+	const __m256 degrees_45 = _mm256_set1_ps(45.0f);
+	const __m256 degrees_180 = _mm256_set1_ps(180.0f);
+	const __m256 degrees_360 = _mm256_set1_ps(360.0f);
+
+	/*
+	int procs, maxt, inpar, dynamic, nested;
+
+
+	#pragma omp parallel shared(gradient, edgeDir, filt)
+	{
+		int nthreads, tid;
+
+		tid = omp_get_thread_num(); //get the number of each thread
+		printf("Hello World from thread = %d\n", tid); //THE ORDER OF THE PRINTF() DIFFERS FROM RUN TO RUN
+
+
+		if (tid == 0)  // Only master thread does this
+		{
+			nthreads = omp_get_num_threads(); //returns the number of threads used inside #pragma omp parallel { }
+			procs = omp_get_num_procs(); //returns the number of physical CPU cores
+			maxt = omp_get_max_threads(); //returns the maximum number of threads available. by default this number will be set to the maximum number of available cores
+			inpar = omp_in_parallel(); //This function returns true if currently running in parallel, false otherwise.
+			dynamic = omp_get_dynamic(); //This function returns true if enabled, false otherwise.
+			nested = omp_get_nested(); //This function returns true if nested parallel regions are enabled, false otherwise. If undefined, nested parallel regions are disabled by default.
+
+			printf("Number of threads = %d\n", nthreads);
+			printf("Number of processors = %d\n", procs);
+			printf("Max threads = %d\n", maxt);
+			printf("In parallel? = %d\n", inpar);
+			printf("Dynamic threads enabled? = %d\n", dynamic);
+			printf("Nested parallelism enabled? = %d\n", nested);
+		}
+
+		*/
+
+
+	int N_ = 1024;
+	int M_ = 1024;
+
+	int ROW_TILE = 32;
+
+		//#pragma omp for private(r, c, row, col) schedule(static)
+	for (int r = 1; r < N_ - 1; r += ROW_TILE) {
+		for (int c = 1; c < M_ - 1; c += 32) {
+			for (int row = r; row < MIN(N_ - 4, r + ROW_TILE); row += 4) { // Unroll by 4
+				for (int col = c; col < MIN(c + 4, M_ - 32); col++) {
+
+
+					// ------------ Store gradient ------------
+
+					gradient[row][c] = 200;
+
+					// For 0
+					gradient[row][col] = 80;
+					gradient[row][col + 4] = 80;
+					gradient[row][col + 8] = 80;
+					gradient[row][col + 12] = 80;
+					gradient[row][col + 16] = 80;
+					gradient[row][col + 20] = 80;
+					gradient[row][col + 24] = 80;
+					gradient[row][col + 28] = 230;
+
+					
+					// For 1
+					gradient[row + 1][col] = 120;
+					gradient[row + 1][col + 4] = 120;
+					gradient[row + 1][col + 8] = 120;
+					gradient[row + 1][col + 12] = 120;
+					gradient[row + 1][col + 16] = 120;
+					gradient[row + 1][col + 20] = 120;
+					gradient[row + 1][col + 24] = 120;
+					gradient[row + 1][col + 28] = 230;
+
+
+					// For 2
+					gradient[row + 2][col] = 160;
+					gradient[row + 2][col + 4] = 160;
+					gradient[row + 2][col + 8] = 160;
+					gradient[row + 2][col + 12] = 160;
+					gradient[row + 2][col + 16] = 160;
+					gradient[row + 2][col + 20] = 160;
+					gradient[row + 2][col + 24] = 160;
+					gradient[row + 2][col + 28] = 230;
+
+					
+					// For 3
+					gradient[row + 3][col] = 200;
+					gradient[row + 3][col + 4] = 200;
+					gradient[row + 3][col + 8] = 200;
+					gradient[row + 3][col + 12] = 200;
+					gradient[row + 3][col + 16] = 200;
+					gradient[row + 3][col + 20] = 200;
+					gradient[row + 3][col + 24] = 200;
+					gradient[row + 3][col + 28] = 230;
+					
+				}
+
+
+
+			}
+
+
+
+		}
+
+
+
+
+	}
+
+	// ROW LEFTOVERS
+	for (int row = ((N_ - 2) / 4) * 4 + 1; row < N_ - 1; row++) {
+		for (int c = 1; c < M_ - 1; c += 32) {
+			for (int col = c; col < MIN(c + 4, M_ - 32); col++) {
+				gradient[row][col] = 60;
+			}
+		}
+	}
+
+	// COL LEFTOVERS
+	for (int row = 1; row < M_ - 1; row++) {
+		for (int col = ((N_ - 2) / 32) * 32 + 1; col < N_ - 1; col++) {
+		
+			//gradient[row][col] = 255;
+		}
+	}
+
+}
+
+
+
+
+
+
+
+
 
 
 
@@ -873,6 +1113,7 @@ int image_detection() {
 
 
 	Sobel();
+	//Sobel_Test();
 
 
 

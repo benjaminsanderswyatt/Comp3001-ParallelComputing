@@ -1,0 +1,1 @@
+g++ main.cpp canny.cpp -o exec -O2 -fopenmp -lm -fopt-info-vec-optimized -mavx2 -march=native

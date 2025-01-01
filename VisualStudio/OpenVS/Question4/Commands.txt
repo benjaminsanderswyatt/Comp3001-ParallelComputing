@@ -1,6 +1,12 @@
 Dont use this one
 g++ implementaion2.cpp -o exec -O2 -fopenmp -lm -fopt-info-vec-optimized
 
+g++ main.cpp canny.cpp -o exec -O2 -fopenmp -lm -fopt-info-vec-optimized -g -Wall -Wextra -Werror
+
+g++ main.cpp canny.cpp -o exec -O2 -fopenmp -lm -fopt-info-vec-optimized -mavx2 -mveclibabi=svml -march=native
+
+g++ main.cpp canny.cpp -o exec -O2 -fopenmp -lm -fopt-info-vec-optimized -mavx2 -march=native
+
 
 in visual studio terminal
 cl implementaion2.cpp -openmp:experimental
