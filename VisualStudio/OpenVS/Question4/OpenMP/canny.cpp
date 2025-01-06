@@ -4,6 +4,7 @@
 
 unsigned char filt[N][M], gradient[N][M], grad2[N][M], edgeDir[N][M];
 unsigned char gaussianMask[5][5];
+signed char GxMask[3][3], GyMask[3][3];
 
 void GaussianBlur() {
 
@@ -64,6 +65,70 @@ void GaussianBlur() {
 
 
 }
+
+
+void Sobel_Original() {
+
+
+	int i, j;
+	unsigned int    row, col;
+	int rowOffset;
+	int colOffset;
+	int Gx;
+	int Gy;
+	float thisAngle;
+	int newAngle;
+	int newPixel;
+
+	unsigned char temp;
+
+
+	/* Declare Sobel masks */
+	GxMask[0][0] = -1; GxMask[0][1] = 0; GxMask[0][2] = 1;
+	GxMask[1][0] = -2; GxMask[1][1] = 0; GxMask[1][2] = 2;
+	GxMask[2][0] = -1; GxMask[2][1] = 0; GxMask[2][2] = 1;
+
+	GyMask[0][0] = -1; GyMask[0][1] = -2; GyMask[0][2] = -1;
+	GyMask[1][0] = 0; GyMask[1][1] = 0; GyMask[1][2] = 0;
+	GyMask[2][0] = 1; GyMask[2][1] = 2; GyMask[2][2] = 1;
+
+	/*---------------------------- Determine edge directions and gradient strengths -------------------------------------------*/
+	for (row = 1; row < N - 1; row++) {
+		for (col = 1; col < M - 1; col++) {
+
+			Gx = 0;
+			Gy = 0;
+
+			/* Calculate the sum of the Sobel mask times the nine surrounding pixels in the x and y direction */
+			for (rowOffset = -1; rowOffset <= 1; rowOffset++) {
+				for (colOffset = -1; colOffset <= 1; colOffset++) {
+
+					Gx += filt[row + rowOffset][col + colOffset] * GxMask[rowOffset + 1][colOffset + 1];
+					Gy += filt[row + rowOffset][col + colOffset] * GyMask[rowOffset + 1][colOffset + 1];
+				}
+			}
+
+			gradient[row][col] = (unsigned char)(sqrt(Gx * Gx + Gy * Gy));
+
+			thisAngle = (((atan2(Gx, Gy)) / 3.14159) * 180.0);
+
+			/* Convert actual edge direction to approximate value */
+			if (((thisAngle >= -22.5) && (thisAngle <= 22.5)) || (thisAngle >= 157.5) || (thisAngle <= -157.5))
+				newAngle = 0;
+			else if (((thisAngle > 22.5) && (thisAngle < 67.5)) || ((thisAngle > -157.5) && (thisAngle < -112.5)))
+				newAngle = 45;
+			else if (((thisAngle >= 67.5) && (thisAngle <= 112.5)) || ((thisAngle >= -112.5) && (thisAngle <= -67.5)))
+				newAngle = 90;
+			else if (((thisAngle > 112.5) && (thisAngle < 157.5)) || ((thisAngle > -67.5) && (thisAngle < -22.5)))
+				newAngle = 135;
+
+
+			edgeDir[row][col] = newAngle;
+		}
+	}
+
+}
+
 
 
 
@@ -883,6 +948,58 @@ int image_detection() {
 			print[i][j] = gradient[i][j];
 
 	write_image(OUT_NAME2, print);
+
+
+
+
+
+	// Speedup calculations
+	printf("\nComparing speed to the orignal sobel\n");
+
+	int TIMES_ORIGINAL = 100;
+	int TIMES_OPTIMIZED = 5000;
+
+
+	auto start = std::chrono::high_resolution_clock::now();
+
+	for (int i = 0; i < TIMES_ORIGINAL; i++) {
+		Sobel_Original();
+	}
+
+	auto finish = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> elapsed = finish - start;
+	std::cout << "\nOriginal Elapsed time: " << elapsed.count() << " s\n";
+
+	double avg_original = elapsed.count() / TIMES_ORIGINAL;
+	std::cout << "\nOriginal average time per iteration: " << avg_original << " s\n\n";
+
+
+
+	auto start_1 = std::chrono::high_resolution_clock::now();
+
+	for (int i = 0; i < TIMES_OPTIMIZED; i++) {
+		Sobel();
+	}
+
+
+	auto finish_1 = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double> elapsed_1 = finish_1 - start_1;
+	std::cout << "\nOptimised Elapsed time: " << elapsed_1.count() << " s\n";
+
+	double avg_optimized = elapsed_1.count() / TIMES_OPTIMIZED;
+	std::cout << "\nOptimized average time per iteration: " << avg_optimized << " s\n\n";
+
+
+	double speedup = avg_original / avg_optimized;
+	printf("\nSpeedup: %f\n\n", speedup);
+
+
+
+
+
+
+
+
 
 
 
